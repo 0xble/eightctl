@@ -12,7 +12,7 @@ type Alarm struct {
 	Enabled    bool    `json:"enabled"`
 	Time       string  `json:"time"`
 	DaysOfWeek []int   `json:"daysOfWeek"`
-	Vibration  bool    `json:"vibration"`
+	Vibration  any     `json:"vibration"`
 	Sound      *string `json:"sound,omitempty"`
 }
 
