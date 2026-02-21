@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -17,8 +18,10 @@ import (
 )
 
 const (
-	defaultBaseURL = "https://client-api.8slp.net/v1"
-	authURL        = "https://auth-api.8slp.net/v1/tokens"
+	defaultBaseURL     = "https://app-api.8slp.net/v1"
+	fallbackBaseURL    = "https://client-api.8slp.net/v1"
+	legacyLoginBaseURL = "https://client-api.8slp.net/v1"
+	authURL            = "https://auth-api.8slp.net/v1/tokens"
 	// Extracted from the official Eight Sleep Android app v7.39.17 (public client creds)
 	defaultClientID     = "0894c7f33bb94800a03f1f4df13a4f38"
 	defaultClientSecret = "f0954a3ed5763ba3d06834c73731a32f15f168f47d4f164751275def86db0c76"
@@ -120,8 +123,8 @@ func (c *Client) authTokenEndpoint(ctx context.Context) error {
 		"grant_type":    "password",
 		"username":      c.Email,
 		"password":      c.Password,
-		"client_id":     "sleep-client",
-		"client_secret": "",
+		"client_id":     c.ClientID,
+		"client_secret": c.ClientSecret,
 	}
 	body, _ := json.Marshal(payload)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, authURL, bytes.NewReader(body))
@@ -174,7 +177,7 @@ func (c *Client) authLegacyLogin(ctx context.Context) error {
 		"password": c.Password,
 	}
 	body, _ := json.Marshal(payload)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/login", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, legacyLoginBaseURL+"/login", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -257,6 +260,10 @@ func (c *Client) requireUser(ctx context.Context) error {
 }
 
 func (c *Client) do(ctx context.Context, method, path string, query url.Values, body any, out any) error {
+	return c.doWithBase(ctx, c.BaseURL, method, path, query, body, out, true)
+}
+
+func (c *Client) doWithBase(ctx context.Context, baseURL, method, path string, query url.Values, body any, out any, allowFallback bool) error {
 	if err := c.ensureToken(ctx); err != nil {
 		return err
 	}
@@ -268,7 +275,7 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 		}
 		rdr = bytes.NewReader(b)
 	}
-	u := c.BaseURL + path
+	u := baseURL + path
 	if len(query) > 0 {
 		u += "?" + query.Encode()
 	}
@@ -288,9 +295,18 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 		return err
 	}
 	defer resp.Body.Close()
+	var bodyReader io.Reader = resp.Body
+	if resp.Header.Get("Content-Encoding") == "gzip" {
+		gr, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			return err
+		}
+		defer gr.Close()
+		bodyReader = gr
+	}
 	if resp.StatusCode == http.StatusTooManyRequests {
 		time.Sleep(2 * time.Second)
-		return c.do(ctx, method, path, query, body, out)
+		return c.doWithBase(ctx, baseURL, method, path, query, body, out, allowFallback)
 	}
 	if resp.StatusCode == http.StatusUnauthorized {
 		c.token = ""
@@ -298,16 +314,45 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 		if err := c.ensureToken(ctx); err != nil {
 			return err
 		}
-		return c.do(ctx, method, path, query, body, out)
+		return c.doWithBase(ctx, baseURL, method, path, query, body, out, allowFallback)
 	}
 	if resp.StatusCode >= 300 {
-		b, _ := io.ReadAll(resp.Body)
+		b, _ := io.ReadAll(bodyReader)
+		if allowFallback && shouldTryFallbackBase(baseURL, resp.StatusCode, b) {
+			alt := alternateBase(baseURL)
+			if alt != "" {
+				log.Debug("retrying on alternate API base", "from", baseURL, "to", alt, "method", method, "path", path, "status", resp.StatusCode)
+				return c.doWithBase(ctx, alt, method, path, query, body, out, false)
+			}
+		}
 		return fmt.Errorf("api %s %s: %s", method, path, string(b))
 	}
 	if out != nil {
-		return json.NewDecoder(resp.Body).Decode(out)
+		return json.NewDecoder(bodyReader).Decode(out)
 	}
 	return nil
+}
+
+func alternateBase(baseURL string) string {
+	switch baseURL {
+	case defaultBaseURL:
+		return fallbackBaseURL
+	case fallbackBaseURL:
+		return defaultBaseURL
+	default:
+		return fallbackBaseURL
+	}
+}
+
+func shouldTryFallbackBase(baseURL string, statusCode int, body []byte) bool {
+	if baseURL == fallbackBaseURL {
+		return false
+	}
+	if statusCode == http.StatusNotFound {
+		return true
+	}
+	lower := bytes.ToLower(body)
+	return bytes.Contains(lower, []byte("cannot get /v1/"))
 }
 
 // TurnOn powers device on.
