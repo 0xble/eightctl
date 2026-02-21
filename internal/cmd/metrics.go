@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -24,9 +25,9 @@ var metricsTrendsCmd = &cobra.Command{Use: "trends", RunE: func(cmd *cobra.Comma
 	if err != nil {
 		return err
 	}
-	tz, err := resolveAPITimezone(viper.GetString("timezone"))
-	if err != nil {
-		return err
+	tz := viper.GetString("timezone")
+	if tz == "local" {
+		tz = time.Local.String()
 	}
 	cl := client.New(viper.GetString("email"), viper.GetString("password"), viper.GetString("user_id"), viper.GetString("client_id"), viper.GetString("client_secret"))
 	var out any
@@ -52,6 +53,30 @@ var metricsIntervalsCmd = &cobra.Command{Use: "intervals", RunE: func(cmd *cobra
 	return output.Print(output.Format(viper.GetString("output")), []string{"interval"}, []map[string]any{{"interval": out}})
 }}
 
+var metricsSummaryCmd = &cobra.Command{Use: "summary", RunE: func(cmd *cobra.Command, args []string) error {
+	if err := requireAuthFields(); err != nil {
+		return err
+	}
+	cl := client.New(viper.GetString("email"), viper.GetString("password"), viper.GetString("user_id"), viper.GetString("client_id"), viper.GetString("client_secret"))
+	var out any
+	if err := cl.Metrics().Summary(context.Background(), &out); err != nil {
+		return err
+	}
+	return output.Print(output.Format(viper.GetString("output")), []string{"summary"}, []map[string]any{{"summary": out}})
+}}
+
+var metricsAggregateCmd = &cobra.Command{Use: "aggregate", RunE: func(cmd *cobra.Command, args []string) error {
+	if err := requireAuthFields(); err != nil {
+		return err
+	}
+	cl := client.New(viper.GetString("email"), viper.GetString("password"), viper.GetString("user_id"), viper.GetString("client_id"), viper.GetString("client_secret"))
+	var out any
+	if err := cl.Metrics().Aggregate(context.Background(), &out); err != nil {
+		return err
+	}
+	return output.Print(output.Format(viper.GetString("output")), []string{"aggregate"}, []map[string]any{{"aggregate": out}})
+}}
+
 var metricsInsightsCmd = &cobra.Command{Use: "insights", RunE: func(cmd *cobra.Command, args []string) error {
 	if err := requireAuthFields(); err != nil {
 		return err
@@ -69,5 +94,5 @@ func init() {
 	metricsTrendsCmd.Flags().String("to", "", "to date YYYY-MM-DD")
 	metricsIntervalsCmd.Flags().String("id", "", "session id")
 
-	metricsCmd.AddCommand(metricsTrendsCmd, metricsIntervalsCmd, metricsInsightsCmd)
+	metricsCmd.AddCommand(metricsTrendsCmd, metricsIntervalsCmd, metricsSummaryCmd, metricsAggregateCmd, metricsInsightsCmd)
 }

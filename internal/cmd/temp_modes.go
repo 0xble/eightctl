@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -100,8 +101,15 @@ var tempEventsCmd = &cobra.Command{Use: "events", RunE: func(cmd *cobra.Command,
 		return err
 	}
 	cl := client.New(viper.GetString("email"), viper.GetString("password"), viper.GetString("user_id"), viper.GetString("client_id"), viper.GetString("client_secret"))
-	from := viper.GetString("from")
-	to := viper.GetString("to")
+	from, err := cmd.Flags().GetString("from")
+	if err != nil {
+		return err
+	}
+	to, err := cmd.Flags().GetString("to")
+	if err != nil {
+		return err
+	}
+	from, to = normalizeDateRangeRFC3339(from, to)
 	var out any
 	if err := cl.TempModes().TempEvents(context.Background(), from, to, &out); err != nil {
 		return err
@@ -120,8 +128,16 @@ func init() {
 	tempHotCmd.AddCommand(tempHotOnCmd, tempHotOffCmd, tempHotStatusCmd)
 	tempEventsCmd.Flags().String("from", "", "from date (YYYY-MM-DD)")
 	tempEventsCmd.Flags().String("to", "", "to date (YYYY-MM-DD)")
-	viper.BindPFlag("from", tempEventsCmd.Flags().Lookup("from"))
-	viper.BindPFlag("to", tempEventsCmd.Flags().Lookup("to"))
 
 	tempModeCmd.AddCommand(tempNapCmd, tempHotCmd, tempEventsCmd)
+}
+
+func normalizeDateRangeRFC3339(from, to string) (string, string) {
+	if d, err := time.Parse("2006-01-02", from); err == nil {
+		from = d.UTC().Format("2006-01-02T15:04:05Z")
+	}
+	if d, err := time.Parse("2006-01-02", to); err == nil {
+		to = time.Date(d.Year(), d.Month(), d.Day(), 23, 59, 59, 0, time.UTC).Format("2006-01-02T15:04:05Z")
+	}
+	return from, to
 }
