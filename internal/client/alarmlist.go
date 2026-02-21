@@ -1,19 +1,70 @@
 package client
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 )
 
 // Alarm represents alarm payload.
 type Alarm struct {
-	ID         string  `json:"id"`
-	Enabled    bool    `json:"enabled"`
-	Time       string  `json:"time"`
-	DaysOfWeek []int   `json:"daysOfWeek"`
-	Vibration  any     `json:"vibration"`
-	Sound      *string `json:"sound,omitempty"`
+	ID         string         `json:"id"`
+	Enabled    bool           `json:"enabled"`
+	Time       string         `json:"time"`
+	DaysOfWeek []int          `json:"daysOfWeek"`
+	Vibration  AlarmVibration `json:"vibration"`
+	Sound      *string        `json:"sound,omitempty"`
+}
+
+// AlarmVibration supports both historical boolean payloads and current object payloads.
+type AlarmVibration struct {
+	Enabled    bool   `json:"enabled"`
+	Pattern    string `json:"pattern,omitempty"`
+	PowerLevel int    `json:"powerLevel,omitempty"`
+}
+
+func (v *AlarmVibration) UnmarshalJSON(data []byte) error {
+	d := bytes.TrimSpace(data)
+	if len(d) == 0 || bytes.Equal(d, []byte("null")) {
+		*v = AlarmVibration{}
+		return nil
+	}
+
+	var enabled bool
+	if err := json.Unmarshal(d, &enabled); err == nil {
+		*v = AlarmVibration{Enabled: enabled}
+		return nil
+	}
+
+	var obj struct {
+		Enabled    *bool  `json:"enabled"`
+		Pattern    string `json:"pattern"`
+		PowerLevel *int   `json:"powerLevel"`
+	}
+	if err := json.Unmarshal(d, &obj); err != nil {
+		return err
+	}
+
+	out := AlarmVibration{Pattern: obj.Pattern}
+	if obj.Enabled != nil {
+		out.Enabled = *obj.Enabled
+	}
+	if obj.PowerLevel != nil {
+		out.PowerLevel = *obj.PowerLevel
+	}
+	*v = out
+	return nil
+}
+
+func (v AlarmVibration) MarshalJSON() ([]byte, error) {
+	// Keep create/update compatibility when only a boolean intent is present.
+	if v.Pattern == "" && v.PowerLevel == 0 {
+		return json.Marshal(v.Enabled)
+	}
+	type alias AlarmVibration
+	return json.Marshal(alias(v))
 }
 
 func (c *Client) ListAlarms(ctx context.Context) ([]Alarm, error) {
