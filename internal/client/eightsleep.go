@@ -348,10 +348,14 @@ func shouldTryFallbackBase(baseURL string, statusCode int, body []byte) bool {
 	if baseURL == fallbackBaseURL {
 		return false
 	}
+	lower := bytes.ToLower(body)
+	// Some app-api endpoints use 404 for valid "inactive" states; do not reroute those.
+	if bytes.Contains(lower, []byte("no active nap session found")) {
+		return false
+	}
 	if statusCode == http.StatusNotFound {
 		return true
 	}
-	lower := bytes.ToLower(body)
 	return bytes.Contains(lower, []byte("cannot get /v1/"))
 }
 
@@ -476,14 +480,7 @@ type AudioTrack struct {
 }
 
 func (c *Client) ListTracks(ctx context.Context) ([]AudioTrack, error) {
-	path := "/audio/tracks"
-	var res struct {
-		Tracks []AudioTrack `json:"tracks"`
-	}
-	if err := c.do(ctx, http.MethodGet, path, nil, nil, &res); err != nil {
-		return nil, err
-	}
-	return res.Tracks, nil
+	return c.Audio().Tracks(ctx)
 }
 
 // ReleaseFeature represents release features payload.
@@ -498,6 +495,9 @@ func (c *Client) ReleaseFeatures(ctx context.Context) ([]ReleaseFeature, error) 
 		Features []ReleaseFeature `json:"features"`
 	}
 	if err := c.do(ctx, http.MethodGet, path, nil, nil, &res); err != nil {
+		if IsEndpointUnavailable(err) {
+			return []ReleaseFeature{}, nil
+		}
 		return nil, err
 	}
 	return res.Features, nil

@@ -46,7 +46,7 @@ func (a *AutopilotActions) SetLevelSuggestions(ctx context.Context, enabled bool
 	}
 	path := fmt.Sprintf("/users/%s/level-suggestions-mode", a.c.UserID)
 	body := map[string]any{"enabled": enabled}
-	return a.c.do(ctx, http.MethodPost, path, nil, body, nil)
+	return a.c.do(ctx, http.MethodPut, path, nil, body, nil)
 }
 
 func (a *AutopilotActions) SetSnoreMitigation(ctx context.Context, enabled bool) error {
@@ -54,6 +54,10 @@ func (a *AutopilotActions) SetSnoreMitigation(ctx context.Context, enabled bool)
 		return err
 	}
 	path := fmt.Sprintf("/users/%s/autopilotDetails/snoringMitigation", a.c.UserID)
-	body := map[string]any{"enabled": enabled}
-	return a.c.do(ctx, http.MethodPost, path, nil, body, nil)
+	body := map[string]any{
+		"snoringMitigation": map[string]any{
+			"enabled": enabled,
+		},
+	}
+	return a.c.do(ctx, http.MethodPut, path, nil, body, nil)
 }

@@ -100,8 +100,14 @@ func (h *HouseholdActions) Guests(ctx context.Context) (any, error) {
 	}
 	path := fmt.Sprintf("/v1/household/users/%s/guests", h.c.UserID)
 	var res any
-	err := h.c.doApp(ctx, http.MethodGet, path, nil, nil, &res)
-	return res, err
+	if err := h.c.doApp(ctx, http.MethodGet, path, nil, nil, &res); err == nil {
+		return res, nil
+	} else if !IsEndpointUnavailable(err) {
+		return nil, err
+	}
+
+	// Current API no longer exposes guests for some accounts; keep command usable.
+	return map[string]any{"guests": []any{}}, nil
 }
 
 func mapToValues(values map[string]string) url.Values {
