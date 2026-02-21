@@ -11,7 +11,7 @@ type MetricsActions struct{ c *Client }
 
 func (c *Client) Metrics() *MetricsActions { return &MetricsActions{c: c} }
 
-func (m *MetricsActions) Trends(ctx context.Context, from, to, tz string, out any) error {
+func (m *MetricsActions) Trends(ctx context.Context, from, to, timezone string, out any) error {
 	if err := m.c.requireUser(ctx); err != nil {
 		return err
 	}
@@ -22,7 +22,9 @@ func (m *MetricsActions) Trends(ctx context.Context, from, to, tz string, out an
 	if to != "" {
 		q.Set("to", to)
 	}
-	q.Set("tz", resolveTZ(tz))
+	if timezone != "" {
+		q.Set("tz", timezone)
+	}
 	q.Set("include-main", "false")
 	q.Set("include-all-sessions", "true")
 	q.Set("model-version", "v2")
@@ -36,6 +38,27 @@ func (m *MetricsActions) Intervals(ctx context.Context, sessionID string, out an
 	}
 	path := fmt.Sprintf("/users/%s/intervals/%s", m.c.UserID, sessionID)
 	return m.c.do(ctx, http.MethodGet, path, nil, nil, out)
+}
+
+func (m *MetricsActions) Summary(ctx context.Context, out any) error {
+	if err := m.c.requireUser(ctx); err != nil {
+		return err
+	}
+	q := url.Values{}
+	q.Set("metrics", "all")
+	path := fmt.Sprintf("/users/%s/metrics/summary", m.c.UserID)
+	return m.c.do(ctx, http.MethodGet, path, q, nil, out)
+}
+
+func (m *MetricsActions) Aggregate(ctx context.Context, out any) error {
+	if err := m.c.requireUser(ctx); err != nil {
+		return err
+	}
+	q := url.Values{}
+	q.Set("v2", "true")
+	q.Set("metrics", "all")
+	path := fmt.Sprintf("/users/%s/metrics/aggregate", m.c.UserID)
+	return m.c.do(ctx, http.MethodGet, path, q, nil, out)
 }
 
 func (m *MetricsActions) Insights(ctx context.Context, out any) error {

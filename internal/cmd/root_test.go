@@ -15,7 +15,7 @@ import (
 func useTempKeyring(t *testing.T) func() {
 	t.Helper()
 	tmp := t.TempDir()
-	restore := tokencache.SetOpenKeyringForTest(func() (keyring.Keyring, error) {
+	restoreKeyring := tokencache.SetOpenKeyringForTest(func() (keyring.Keyring, error) {
 		return keyring.Open(keyring.Config{
 			ServiceName:      "eightctl-test",
 			AllowedBackends:  []keyring.BackendType{keyring.FileBackend},
@@ -23,6 +23,11 @@ func useTempKeyring(t *testing.T) func() {
 			FilePasswordFunc: func(_ string) (string, error) { return "test-pass", nil },
 		})
 	})
+	restoreFallback := tokencache.SetFallbackPathForTest(filepath.Join(tmp, "token-cache.json"))
+	restore := func() {
+		restoreKeyring()
+		restoreFallback()
+	}
 	t.Cleanup(restore)
 	return restore
 }

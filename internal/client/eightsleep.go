@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -17,16 +18,13 @@ import (
 )
 
 const (
-	defaultBaseURL = "https://client-api.8slp.net/v1"
+	defaultBaseURL     = "https://app-api.8slp.net/v1"
+	fallbackBaseURL    = "https://client-api.8slp.net/v1"
+	legacyLoginBaseURL = "https://client-api.8slp.net/v1"
+	authURL            = "https://auth-api.8slp.net/v1/tokens"
 	// Extracted from the official Eight Sleep Android app v7.39.17 (public client creds)
 	defaultClientID     = "0894c7f33bb94800a03f1f4df13a4f38"
 	defaultClientSecret = "f0954a3ed5763ba3d06834c73731a32f15f168f47d4f164751275def86db0c76"
-)
-
-// authURL and appAPIBaseURL are vars so tests can point them at local servers.
-var (
-	authURL       = "https://auth-api.8slp.net/v1/tokens"
-	appAPIBaseURL = "https://app-api.8slp.net/v1"
 )
 
 // Client represents Eight Sleep API client.
@@ -70,9 +68,12 @@ func New(email, password, userID, clientID, clientSecret string) *Client {
 	}
 }
 
-// Authenticate fetches a bearer token via the OAuth password-grant endpoint.
+// Authenticate fetches bearer token. Tries OAuth token endpoint first; falls back to /login used by app.
 func (c *Client) Authenticate(ctx context.Context) error {
-	return c.authTokenEndpoint(ctx)
+	if err := c.authTokenEndpoint(ctx); err == nil {
+		return nil
+	}
+	return c.authLegacyLogin(ctx)
 }
 
 // EnsureUserID populates UserID by calling /users/me if missing.
@@ -118,18 +119,19 @@ func (c *Client) EnsureDeviceID(ctx context.Context) (string, error) {
 }
 
 func (c *Client) authTokenEndpoint(ctx context.Context) error {
-	form := url.Values{}
-	form.Set("grant_type", "password")
-	form.Set("username", c.Email)
-	form.Set("password", c.Password)
-	form.Set("client_id", c.ClientID)
-	form.Set("client_secret", c.ClientSecret)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, authURL,
-		bytes.NewReader([]byte(form.Encode())))
+	payload := map[string]string{
+		"grant_type":    "password",
+		"username":      c.Email,
+		"password":      c.Password,
+		"client_id":     c.ClientID,
+		"client_secret": c.ClientSecret,
+	}
+	body, _ := json.Marshal(payload)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, authURL, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
@@ -169,6 +171,64 @@ func (c *Client) authTokenEndpoint(ctx context.Context) error {
 	return nil
 }
 
+func (c *Client) authLegacyLogin(ctx context.Context) error {
+	payload := map[string]string{
+		"email":    c.Email,
+		"password": c.Password,
+	}
+	body, _ := json.Marshal(payload)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, legacyLoginBaseURL+"/login", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Connection", "keep-alive")
+	req.Header.Set("User-Agent", "okhttp/4.9.3")
+	req.Header.Set("Accept-Encoding", "gzip")
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		b, _ := io.ReadAll(resp.Body)
+		log.Debug("legacy login failed", "status", resp.Status, "headers", resp.Header, "body", string(b))
+		return fmt.Errorf("login failed: %s", string(b))
+	}
+	var res struct {
+		Session struct {
+			UserID         string `json:"userId"`
+			Token          string `json:"token"`
+			ExpirationDate string `json:"expirationDate"`
+		} `json:"session"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return err
+	}
+	if res.Session.Token == "" {
+		return errors.New("empty session token")
+	}
+	c.token = res.Session.Token
+	if res.Session.ExpirationDate != "" {
+		if t, err := time.Parse(time.RFC3339, res.Session.ExpirationDate); err == nil {
+			c.tokenExp = t
+		}
+	}
+	if c.tokenExp.IsZero() {
+		c.tokenExp = time.Now().Add(12 * time.Hour)
+	}
+	if c.UserID == "" {
+		c.UserID = res.Session.UserID
+	}
+	if err := tokencache.Save(c.Identity(), c.token, c.tokenExp, c.UserID); err != nil {
+		log.Debug("failed to cache token", "error", err)
+	} else {
+		log.Debug("saved token to cache (legacy)", "expires_at", c.tokenExp)
+	}
+	return nil
+}
+
 func (c *Client) ensureToken(ctx context.Context) error {
 	if c.token != "" && time.Now().Before(c.tokenExp) {
 		log.Debug("using in-memory token", "expires_in", time.Until(c.tokenExp).Round(time.Second))
@@ -199,25 +259,11 @@ func (c *Client) requireUser(ctx context.Context) error {
 	return c.EnsureUserID(ctx)
 }
 
-const maxRetries = 3
-
-// do builds a URL from BaseURL + path and delegates to doURL.
 func (c *Client) do(ctx context.Context, method, path string, query url.Values, body any, out any) error {
-	u := c.BaseURL + path
-	if len(query) > 0 {
-		u += "?" + query.Encode()
-	}
-	return c.doURL(ctx, method, u, body, out)
+	return c.doWithBase(ctx, c.BaseURL, method, path, query, body, out, true)
 }
 
-// doURL sends an authenticated request to an absolute URL. Use do() for
-// BaseURL-relative paths; use doURL directly for requests to other hosts
-// (e.g. the app API for away mode).
-func (c *Client) doURL(ctx context.Context, method, u string, body any, out any) error {
-	return c.doURLRetry(ctx, method, u, body, out, 0)
-}
-
-func (c *Client) doURLRetry(ctx context.Context, method, u string, body any, out any, attempt int) error {
+func (c *Client) doWithBase(ctx context.Context, baseURL, method, path string, query url.Values, body any, out any, allowFallback bool) error {
 	if err := c.ensureToken(ctx); err != nil {
 		return err
 	}
@@ -229,6 +275,10 @@ func (c *Client) doURLRetry(ctx context.Context, method, u string, body any, out
 		}
 		rdr = bytes.NewReader(b)
 	}
+	u := baseURL + path
+	if len(query) > 0 {
+		u += "?" + query.Encode()
+	}
 	req, err := http.NewRequestWithContext(ctx, method, u, rdr)
 	if err != nil {
 		return err
@@ -238,41 +288,71 @@ func (c *Client) doURLRetry(ctx context.Context, method, u string, body any, out
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Connection", "keep-alive")
 	req.Header.Set("User-Agent", "okhttp/4.9.3")
-	// Note: we intentionally do NOT set Accept-Encoding. Go's http.Transport
-	// handles gzip transparently when the header is absent. Setting it
-	// explicitly disables automatic decompression.
+	req.Header.Set("Accept-Encoding", "gzip")
 
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusTooManyRequests {
-		if attempt >= maxRetries {
-			return fmt.Errorf("rate limited after %d retries: %s %s", maxRetries, method, u)
+	var bodyReader io.Reader = resp.Body
+	if resp.Header.Get("Content-Encoding") == "gzip" {
+		gr, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			return err
 		}
-		time.Sleep(time.Duration(2*(attempt+1)) * time.Second)
-		return c.doURLRetry(ctx, method, u, body, out, attempt+1)
+		defer gr.Close()
+		bodyReader = gr
+	}
+	if resp.StatusCode == http.StatusTooManyRequests {
+		time.Sleep(2 * time.Second)
+		return c.doWithBase(ctx, baseURL, method, path, query, body, out, allowFallback)
 	}
 	if resp.StatusCode == http.StatusUnauthorized {
-		if attempt >= maxRetries {
-			return fmt.Errorf("unauthorized after %d retries: %s %s", maxRetries, method, u)
-		}
 		c.token = ""
 		_ = tokencache.Clear(c.Identity())
 		if err := c.ensureToken(ctx); err != nil {
 			return err
 		}
-		return c.doURLRetry(ctx, method, u, body, out, attempt+1)
+		return c.doWithBase(ctx, baseURL, method, path, query, body, out, allowFallback)
 	}
 	if resp.StatusCode >= 300 {
-		b, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("api %s %s: %s", method, u, string(b))
+		b, _ := io.ReadAll(bodyReader)
+		if allowFallback && shouldTryFallbackBase(baseURL, resp.StatusCode, b) {
+			alt := alternateBase(baseURL)
+			if alt != "" {
+				log.Debug("retrying on alternate API base", "from", baseURL, "to", alt, "method", method, "path", path, "status", resp.StatusCode)
+				return c.doWithBase(ctx, alt, method, path, query, body, out, false)
+			}
+		}
+		return fmt.Errorf("api %s %s: %s", method, path, string(b))
 	}
 	if out != nil {
-		return json.NewDecoder(resp.Body).Decode(out)
+		return json.NewDecoder(bodyReader).Decode(out)
 	}
 	return nil
+}
+
+func alternateBase(baseURL string) string {
+	switch baseURL {
+	case defaultBaseURL:
+		return fallbackBaseURL
+	case fallbackBaseURL:
+		return defaultBaseURL
+	default:
+		return fallbackBaseURL
+	}
+}
+
+func shouldTryFallbackBase(baseURL string, statusCode int, body []byte) bool {
+	if baseURL == fallbackBaseURL {
+		return false
+	}
+	if statusCode == http.StatusNotFound {
+		return true
+	}
+	lower := bytes.ToLower(body)
+	return bytes.Contains(lower, []byte("cannot get /v1/"))
 }
 
 // TurnOn powers device on.
@@ -313,28 +393,6 @@ func (c *Client) SetTemperature(ctx context.Context, level int) error {
 	path := fmt.Sprintf("/users/%s/temperature", c.UserID)
 	body := map[string]int{"currentLevel": level}
 	return c.do(ctx, http.MethodPut, path, nil, body, nil)
-}
-
-// SetAwayMode activates or deactivates away mode for a specific user ID.
-// The away-mode endpoint lives on the app API (app-api.8slp.net), not the
-// client API used by most other endpoints.
-// If userID is empty, it defaults to the authenticated user.
-func (c *Client) SetAwayMode(ctx context.Context, userID string, away bool) error {
-	if userID == "" {
-		if err := c.requireUser(ctx); err != nil {
-			return err
-		}
-		userID = c.UserID
-	}
-	ts := time.Now().UTC().Add(-24 * time.Hour).Format("2006-01-02T15:04:05.000Z")
-	var payload map[string]any
-	if away {
-		payload = map[string]any{"awayPeriod": map[string]string{"start": ts}}
-	} else {
-		payload = map[string]any{"awayPeriod": map[string]string{"end": ts}}
-	}
-	u := fmt.Sprintf("%s/users/%s/away-mode", appAPIBaseURL, userID)
-	return c.doURL(ctx, http.MethodPut, u, payload, nil)
 }
 
 // TempStatus represents current temperature state payload.
@@ -391,7 +449,7 @@ func (c *Client) GetSleepDay(ctx context.Context, date string, timezone string) 
 		return nil, err
 	}
 	q := url.Values{}
-	q.Set("tz", resolveTZ(timezone))
+	q.Set("tz", timezone)
 	q.Set("from", date)
 	q.Set("to", date)
 	q.Set("include-main", "false")
@@ -432,23 +490,6 @@ func (c *Client) ListTracks(ctx context.Context) ([]AudioTrack, error) {
 type ReleaseFeature struct {
 	Title string `json:"title"`
 	Body  string `json:"body"`
-}
-
-// resolveTZ converts the CLI-convention zone "" or "local" to an IANA zone
-// name. Eight Sleep's tz param rejects the literal strings "local" and
-// "Local" (the latter is what time.Local.String() returns when the system
-// has no zoneinfo). UTC is used as a last-resort fallback and logged so
-// off-by-hours trend data is not presented as correct.
-func resolveTZ(tz string) string {
-	if tz != "" && tz != "local" {
-		return tz
-	}
-	name := time.Local.String()
-	if name == "" || name == "Local" {
-		log.Warn("system timezone unresolved; defaulting to UTC. Pass --timezone <IANA> to override.")
-		return "UTC"
-	}
-	return name
 }
 
 func (c *Client) ReleaseFeatures(ctx context.Context) ([]ReleaseFeature, error) {
