@@ -21,6 +21,10 @@ var presenceCmd = &cobra.Command{
 		}
 		from, err := cmd.Flags().GetString("from")
 		if err != nil {
+			if client.IsEndpointUnavailable(err) {
+				fmt.Println("present: unknown (endpoint unavailable)")
+				return nil
+			}
 			return err
 		}
 		to, err := cmd.Flags().GetString("to")

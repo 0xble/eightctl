@@ -22,7 +22,10 @@ var autopilotLevelCmd = &cobra.Command{Use: "level-suggestions", RunE: func(cmd 
 	if err := requireAuthFields(); err != nil {
 		return err
 	}
-	enabled := viper.GetBool("enabled")
+	enabled, err := cmd.Flags().GetBool("enabled")
+	if err != nil {
+		return err
+	}
 	cl := client.New(viper.GetString("email"), viper.GetString("password"), viper.GetString("user_id"), viper.GetString("client_id"), viper.GetString("client_secret"))
 	return cl.Autopilot().SetLevelSuggestions(context.Background(), enabled)
 }}
@@ -31,7 +34,10 @@ var autopilotSnoreCmd = &cobra.Command{Use: "snore-mitigation", RunE: func(cmd *
 	if err := requireAuthFields(); err != nil {
 		return err
 	}
-	enabled := viper.GetBool("enabled")
+	enabled, err := cmd.Flags().GetBool("enabled")
+	if err != nil {
+		return err
+	}
 	cl := client.New(viper.GetString("email"), viper.GetString("password"), viper.GetString("user_id"), viper.GetString("client_id"), viper.GetString("client_secret"))
 	return cl.Autopilot().SetSnoreMitigation(context.Background(), enabled)
 }}
@@ -52,9 +58,7 @@ func simpleAutopilot(name string, fn func(*client.Client, context.Context) (any,
 
 func init() {
 	autopilotLevelCmd.Flags().Bool("enabled", true, "enable or disable")
-	viper.BindPFlag("enabled", autopilotLevelCmd.Flags().Lookup("enabled"))
 	autopilotSnoreCmd.Flags().Bool("enabled", true, "enable or disable")
-	viper.BindPFlag("enabled", autopilotSnoreCmd.Flags().Lookup("enabled"))
 
 	autopilotCmd.AddCommand(autopilotDetailsCmd, autopilotHistoryCmd, autopilotRecapCmd, autopilotLevelCmd, autopilotSnoreCmd)
 }
