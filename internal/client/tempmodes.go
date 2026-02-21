@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 type TempModes struct{ c *Client }
@@ -25,7 +26,25 @@ func (t *TempModes) NapExtend(ctx context.Context) error {
 }
 
 func (t *TempModes) NapStatus(ctx context.Context, out any) error {
-	return t.simpleGet(ctx, "/temperature/nap-mode/status", out)
+	err := t.simpleGet(ctx, "/temperature/nap-mode/status", out)
+	if err == nil {
+		return nil
+	}
+
+	// Current app-api returns 404 "No active nap session found" for status when idle.
+	if strings.Contains(strings.ToLower(err.Error()), "no active nap session found") {
+		var cfg map[string]any
+		if cfgErr := t.simpleGet(ctx, "/temperature/nap-mode", &cfg); cfgErr == nil {
+			if m, ok := out.(*map[string]any); ok && m != nil {
+				*m = map[string]any{
+					"active": false,
+					"config": cfg,
+				}
+				return nil
+			}
+		}
+	}
+	return err
 }
 
 // Hot flash controls

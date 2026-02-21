@@ -20,6 +20,10 @@ var presenceCmd = &cobra.Command{
 		cl := client.New(viper.GetString("email"), viper.GetString("password"), viper.GetString("user_id"), viper.GetString("client_id"), viper.GetString("client_secret"))
 		present, err := cl.GetPresence(context.Background())
 		if err != nil {
+			if client.IsEndpointUnavailable(err) {
+				fmt.Println("present: unknown (endpoint unavailable)")
+				return nil
+			}
 			return err
 		}
 		fmt.Printf("present: %v\n", present)
