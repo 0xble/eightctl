@@ -70,7 +70,7 @@ var alarmCreateCmd = &cobra.Command{
 			Enabled:    !viper.GetBool("disabled"),
 			Time:       timeStr,
 			DaysOfWeek: days,
-			Vibration:  !viper.GetBool("no-vibration"),
+			Vibration:  client.AlarmVibration{Enabled: !viper.GetBool("no-vibration")},
 			Sound:      soundPtr,
 		}
 		res, err := cl.CreateAlarm(context.Background(), alarm)
