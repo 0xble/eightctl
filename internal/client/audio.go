@@ -35,7 +35,7 @@ func (a *AudioActions) PlayerState(ctx context.Context) (any, error) {
 	if err := a.c.requireUser(ctx); err != nil {
 		return nil, err
 	}
-	path := fmt.Sprintf("/users/%s/audio/player/state", a.c.UserID)
+	path := fmt.Sprintf("/users/%s/audio/player", a.c.UserID)
 	var res any
 	err := a.c.do(ctx, http.MethodGet, path, nil, nil, &res)
 	return res, err

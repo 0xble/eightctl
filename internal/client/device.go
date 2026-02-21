@@ -63,20 +63,23 @@ func (d *DeviceActions) Owner(ctx context.Context) (any, error) {
 	var res any
 	if err := d.c.do(ctx, http.MethodGet, path, nil, nil, &res); err == nil {
 		return res, nil
-	}
-	// Fallback: extract ownerId from device info when /owner endpoint is unavailable.
-	info, err := d.Info(ctx)
-	if err != nil {
+	} else if !IsEndpointUnavailable(err) {
 		return nil, err
 	}
+
+	// Fallback: owner endpoint is unavailable on current API; extract from device info.
+	info, infoErr := d.Info(ctx)
+	if infoErr != nil {
+		return nil, infoErr
+	}
 	if m, ok := info.(map[string]any); ok {
-		if result, ok := m["result"].(map[string]any); ok {
-			if ownerID, ok := result["ownerId"].(string); ok {
+		if r, ok := m["result"].(map[string]any); ok {
+			if ownerID, ok := r["ownerId"]; ok {
 				return map[string]any{"ownerId": ownerID}, nil
 			}
 		}
 	}
-	return nil, fmt.Errorf("owner not found in device info")
+	return nil, fmt.Errorf("ownerId not found in device info fallback")
 }
 
 func (d *DeviceActions) Warranty(ctx context.Context) (any, error) {
