@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here.
 
+## Fork Convention (0xble)
+
+- Upstream entries are implicit by default (no prefix required).
+- Prefix fork-authored divergences with `[FORK]`.
+- Prefix uncommitted/local-only work with `[LOCAL]`.
+
 This project has not cut tagged releases yet. The entries below reconstruct the
 release history from git.
 
@@ -19,6 +25,8 @@ release history from git.
 
 ### Changed
 
+- [FORK] Reset the fork version suffix to `0.2.0-0xble.0.1.0` after syncing the
+  upstream `0.2.0` base.
 - OAuth now uses the current token endpoint contract with
   `application/x-www-form-urlencoded` bodies.
 - API calls were updated for current Eight Sleep cloud endpoints.
