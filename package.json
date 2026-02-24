@@ -1,6 +1,6 @@
 {
   "name": "eightctl",
-  "version": "0.1.0",
+  "version": "0.1.0-0xble.1",
   "private": true,
   "description": "Go CLI for Eight Sleep Pods, with pnpm scripts for convenience",
   "engines": {
