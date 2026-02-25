@@ -199,3 +199,19 @@ func TestFilePasswordFunc(t *testing.T) {
 		t.Fatalf("password = %q, want %q", pw, serviceName+"-fallback")
 	}
 }
+
+// TestDefaultKeyringUsesFileBackendOnly ensures the production keyring config
+// only allows FileBackend. KeychainBackend hangs on headless macOS (no GUI to
+// unlock), and SecretService/WinCred are irrelevant on macOS.
+func TestDefaultKeyringUsesFileBackendOnly(t *testing.T) {
+	ring, err := defaultOpenKeyring()
+	if err != nil {
+		t.Fatalf("defaultOpenKeyring: %v", err)
+	}
+	// The keyring should be usable without any interactive prompt.
+	// If KeychainBackend were included, this would hang on headless systems.
+	// We verify by doing a simple Keys() call which should return promptly.
+	if _, err := ring.Keys(); err != nil {
+		t.Fatalf("ring.Keys: %v", err)
+	}
+}

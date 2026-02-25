@@ -172,6 +172,31 @@ func TestNoExplicitGzipHeader(t *testing.T) {
 	}
 }
 
+func Test429RetryBounded(t *testing.T) {
+	count := 0
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
+		count++
+		w.WriteHeader(http.StatusTooManyRequests)
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	c := New("email", "pass", "uid", "", "")
+	c.BaseURL = srv.URL
+	c.token = "t"
+	c.tokenExp = time.Now().Add(time.Hour)
+	c.HTTP = srv.Client()
+
+	err := c.do(context.Background(), http.MethodGet, "/ping", nil, nil, nil)
+	if err == nil {
+		t.Fatal("expected error after exhausting retries")
+	}
+	if count != maxRetries+1 {
+		t.Fatalf("expected %d attempts (1 initial + %d retries), got %d", maxRetries+1, maxRetries, count)
+	}
+}
+
 func Test429Retry(t *testing.T) {
 	count := 0
 	mux := http.NewServeMux()
