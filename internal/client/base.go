@@ -24,8 +24,17 @@ func (b *BaseActions) SetAngle(ctx context.Context, head, foot int) error {
 	if err := b.c.requireUser(ctx); err != nil {
 		return err
 	}
+	deviceID, err := b.c.EnsureDeviceID(ctx)
+	if err != nil {
+		return err
+	}
 	path := fmt.Sprintf("/users/%s/base/angle", b.c.UserID)
-	body := map[string]any{"head": head, "foot": foot}
+	body := map[string]any{
+		"torsoAngle":   head,
+		"legAngle":     foot,
+		"deviceId":     deviceID,
+		"deviceOnline": true,
+	}
 	return b.c.do(ctx, http.MethodPost, path, nil, body, nil)
 }
 
