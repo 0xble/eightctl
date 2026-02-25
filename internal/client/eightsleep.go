@@ -260,10 +260,12 @@ func (c *Client) requireUser(ctx context.Context) error {
 }
 
 func (c *Client) do(ctx context.Context, method, path string, query url.Values, body any, out any) error {
-	return c.doWithBase(ctx, c.BaseURL, method, path, query, body, out, true)
+	return c.doWithBase(ctx, c.BaseURL, method, path, query, body, out, true, 0)
 }
 
-func (c *Client) doWithBase(ctx context.Context, baseURL, method, path string, query url.Values, body any, out any, allowFallback bool) error {
+const maxRetries = 3
+
+func (c *Client) doWithBase(ctx context.Context, baseURL, method, path string, query url.Values, body any, out any, allowFallback bool, retryCount int) error {
 	if err := c.ensureToken(ctx); err != nil {
 		return err
 	}
@@ -305,16 +307,24 @@ func (c *Client) doWithBase(ctx context.Context, baseURL, method, path string, q
 		bodyReader = gr
 	}
 	if resp.StatusCode == http.StatusTooManyRequests {
-		time.Sleep(2 * time.Second)
-		return c.doWithBase(ctx, baseURL, method, path, query, body, out, allowFallback)
+		if retryCount >= maxRetries {
+			return fmt.Errorf("api %s %s: rate limited after %d retries", method, path, maxRetries)
+		}
+		delay := time.Duration(2<<retryCount) * time.Second // 2s, 4s, 8s
+		log.Debug("rate limited, backing off", "attempt", retryCount+1, "delay", delay)
+		time.Sleep(delay)
+		return c.doWithBase(ctx, baseURL, method, path, query, body, out, allowFallback, retryCount+1)
 	}
 	if resp.StatusCode == http.StatusUnauthorized {
+		if retryCount >= maxRetries {
+			return fmt.Errorf("api %s %s: unauthorized after %d retries", method, path, maxRetries)
+		}
 		c.token = ""
 		_ = tokencache.Clear(c.Identity())
 		if err := c.ensureToken(ctx); err != nil {
 			return err
 		}
-		return c.doWithBase(ctx, baseURL, method, path, query, body, out, allowFallback)
+		return c.doWithBase(ctx, baseURL, method, path, query, body, out, allowFallback, retryCount+1)
 	}
 	if resp.StatusCode >= 300 {
 		b, _ := io.ReadAll(bodyReader)
@@ -322,7 +332,7 @@ func (c *Client) doWithBase(ctx context.Context, baseURL, method, path string, q
 			alt := alternateBase(baseURL)
 			if alt != "" {
 				log.Debug("retrying on alternate API base", "from", baseURL, "to", alt, "method", method, "path", path, "status", resp.StatusCode)
-				return c.doWithBase(ctx, alt, method, path, query, body, out, false)
+				return c.doWithBase(ctx, alt, method, path, query, body, out, false, 0)
 			}
 		}
 		return fmt.Errorf("api %s %s: %s", method, path, string(b))
