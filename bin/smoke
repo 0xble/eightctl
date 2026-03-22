@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+
+bin_path="$HOME/.local/bin/eightctl"
+
+[ -x "$bin_path" ]
+"$bin_path" version | /usr/bin/grep -Fq '0xble'
+"$bin_path" help >/dev/null
+
+echo "smoke ok: eightctl"

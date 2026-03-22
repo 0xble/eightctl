@@ -1,5 +1,6 @@
 #!/bin/sh
-set -e
+set -eu
 cd "$(dirname "$0")/.."
 go build -o ~/.local/bin/eightctl ./cmd/eightctl
 echo "installed eightctl from $(git describe --tags --always 2>/dev/null || git rev-parse --short HEAD)"
+"$HOME/.local/bin/eightctl" version
