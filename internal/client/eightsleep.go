@@ -21,10 +21,15 @@ const (
 	defaultBaseURL     = "https://app-api.8slp.net/v1"
 	fallbackBaseURL    = "https://client-api.8slp.net/v1"
 	legacyLoginBaseURL = "https://client-api.8slp.net/v1"
-	authURL            = "https://auth-api.8slp.net/v1/tokens"
 	// Extracted from the official Eight Sleep Android app v7.39.17 (public client creds)
 	defaultClientID     = "0894c7f33bb94800a03f1f4df13a4f38"
 	defaultClientSecret = "f0954a3ed5763ba3d06834c73731a32f15f168f47d4f164751275def86db0c76"
+)
+
+// authURL and appAPIBaseURL are vars so tests can point them at local servers.
+var (
+	authURL      = "https://auth-api.8slp.net/v1/tokens"
+	appAPIBaseURL = "https://app-api.8slp.net/v1"
 )
 
 // Client represents Eight Sleep API client.
@@ -119,19 +124,18 @@ func (c *Client) EnsureDeviceID(ctx context.Context) (string, error) {
 }
 
 func (c *Client) authTokenEndpoint(ctx context.Context) error {
-	payload := map[string]string{
-		"grant_type":    "password",
-		"username":      c.Email,
-		"password":      c.Password,
-		"client_id":     c.ClientID,
-		"client_secret": c.ClientSecret,
-	}
-	body, _ := json.Marshal(payload)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, authURL, bytes.NewReader(body))
+	form := url.Values{}
+	form.Set("grant_type", "password")
+	form.Set("username", c.Email)
+	form.Set("password", c.Password)
+	form.Set("client_id", c.ClientID)
+	form.Set("client_secret", c.ClientSecret)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, authURL,
+		bytes.NewReader([]byte(form.Encode())))
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
@@ -511,4 +515,60 @@ func (c *Client) ReleaseFeatures(ctx context.Context) ([]ReleaseFeature, error) 
 		return nil, err
 	}
 	return res.Features, nil
+}
+
+// doURL sends an authenticated request to an absolute URL (no BaseURL fallback).
+func (c *Client) doURL(ctx context.Context, method, u string, body any, out any) error {
+	if err := c.ensureToken(ctx); err != nil {
+		return err
+	}
+	var rdr io.Reader
+	if body != nil {
+		b, err := json.Marshal(body)
+		if err != nil {
+			return err
+		}
+		rdr = bytes.NewReader(b)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, u, rdr)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.token)
+	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Connection", "keep-alive")
+	req.Header.Set("User-Agent", "okhttp/4.9.3")
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		b, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("api %s %s: %s", method, u, string(b))
+	}
+	if out != nil {
+		return json.NewDecoder(resp.Body).Decode(out)
+	}
+	return nil
+}
+
+// SetAwayMode activates or deactivates away mode for a specific user ID.
+func (c *Client) SetAwayMode(ctx context.Context, userID string, away bool) error {
+	if userID == "" {
+		if err := c.requireUser(ctx); err != nil {
+			return err
+		}
+		userID = c.UserID
+	}
+	ts := time.Now().UTC().Add(-24 * time.Hour).Format("2006-01-02T15:04:05.000Z")
+	var payload map[string]any
+	if away {
+		payload = map[string]any{"awayPeriod": map[string]string{"start": ts}}
+	} else {
+		payload = map[string]any{"awayPeriod": map[string]string{"end": ts}}
+	}
+	u := fmt.Sprintf("%s/users/%s/away-mode", appAPIBaseURL, userID)
+	return c.doURL(ctx, http.MethodPut, u, payload, nil)
 }
