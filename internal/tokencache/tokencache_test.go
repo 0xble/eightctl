@@ -12,6 +12,7 @@ func withTestKeyring(t *testing.T) {
 	t.Helper()
 	tmpDir := t.TempDir()
 	orig := openKeyring
+	restoreFallbackPath := SetFallbackPathForTest(filepath.Join(tmpDir, "token-cache.json"))
 	openKeyring = func() (keyring.Keyring, error) {
 		return keyring.Open(keyring.Config{
 			ServiceName:      serviceName + "-test",
@@ -20,7 +21,10 @@ func withTestKeyring(t *testing.T) {
 			FilePasswordFunc: func(_ string) (string, error) { return "test-pass", nil },
 		})
 	}
-	t.Cleanup(func() { openKeyring = orig })
+	t.Cleanup(func() {
+		openKeyring = orig
+		restoreFallbackPath()
+	})
 }
 
 func TestSaveLoadRoundTrip(t *testing.T) {
