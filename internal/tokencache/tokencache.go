@@ -98,12 +98,16 @@ func Save(id Identity, token string, expiresAt time.Time, userID string) error {
 	return nil
 }
 
-func Load(id Identity, expectedUserID string) (*CachedToken, error) {
+// Load returns the cached token for the given Identity, if present and unexpired.
+// Tokens are namespaced by Identity (base URL + client ID + email) — not by
+// UserID — because a single OAuth principal (email) can legitimately act on
+// multiple household userIDs. The cached UserID is informational metadata for
+// callers that want to recover "which userID was primary at auth time."
+func Load(id Identity) (*CachedToken, error) {
 	if ring, err := openKeyring(); err == nil {
 		key := cacheKey(id)
 		item, err := ring.Get(key)
 		if err == keyring.ErrKeyNotFound && id.Email == "" {
-			// No email specified: attempt to find a single matching token for this base/client.
 			if alt, findErr := findSingleForClient(ring, id); findErr == nil {
 				key = alt
 				item, err = ring.Get(key)
@@ -120,9 +124,6 @@ func Load(id Identity, expectedUserID string) (*CachedToken, error) {
 				_ = ring.Remove(key)
 				return nil, keyring.ErrKeyNotFound
 			}
-			if expectedUserID != "" && cached.UserID != "" && cached.UserID != expectedUserID {
-				return nil, keyring.ErrKeyNotFound
-			}
 			return cached, nil
 		}
 		log.Debug("keyring get failed", "error", err)
@@ -130,7 +131,7 @@ func Load(id Identity, expectedUserID string) (*CachedToken, error) {
 		log.Debug("keyring open failed (load)", "error", err)
 	}
 
-	cached, err := loadFallbackToken(id, expectedUserID)
+	cached, err := loadFallbackToken(id)
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +257,7 @@ func clearFallbackToken(key string) error {
 	return saveFallbackMap(m)
 }
 
-func loadFallbackToken(id Identity, expectedUserID string) (*CachedToken, error) {
+func loadFallbackToken(id Identity) (*CachedToken, error) {
 	m, err := loadFallbackMap()
 	if err != nil {
 		return nil, err
@@ -276,9 +277,6 @@ func loadFallbackToken(id Identity, expectedUserID string) (*CachedToken, error)
 	if time.Now().After(token.ExpiresAt) {
 		delete(m, key)
 		_ = saveFallbackMap(m)
-		return nil, keyring.ErrKeyNotFound
-	}
-	if expectedUserID != "" && token.UserID != "" && token.UserID != expectedUserID {
 		return nil, keyring.ErrKeyNotFound
 	}
 	return &token, nil

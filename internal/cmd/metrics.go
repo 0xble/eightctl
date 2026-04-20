@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -25,9 +24,9 @@ var metricsTrendsCmd = &cobra.Command{Use: "trends", RunE: func(cmd *cobra.Comma
 	if err != nil {
 		return err
 	}
-	tz := viper.GetString("timezone")
-	if tz == "local" {
-		tz = time.Local.String()
+	tz, err := resolveAPITimezone(viper.GetString("timezone"))
+	if err != nil {
+		return err
 	}
 	cl := client.New(viper.GetString("email"), viper.GetString("password"), viper.GetString("user_id"), viper.GetString("client_id"), viper.GetString("client_secret"))
 	var out any

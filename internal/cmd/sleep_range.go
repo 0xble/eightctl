@@ -42,9 +42,9 @@ var sleepRangeCmd = &cobra.Command{
 		if end.Before(start) {
 			return fmt.Errorf("to must be >= from")
 		}
-		tz := viper.GetString("timezone")
-		if tz == "local" {
-			tz = time.Local.String()
+		tz, err := resolveAPITimezone(viper.GetString("timezone"))
+		if err != nil {
+			return err
 		}
 		cl := client.New(viper.GetString("email"), viper.GetString("password"), viper.GetString("user_id"), viper.GetString("client_id"), viper.GetString("client_secret"))
 		rows := []map[string]any{}
