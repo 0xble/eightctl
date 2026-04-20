@@ -91,7 +91,7 @@ func TestClientCoreActionEndpoints(t *testing.T) {
 				_, err := c.Audio().PlayerState(ctx)
 				return err
 			},
-			want: recordedRequest{Method: http.MethodGet, Path: "/users/uid/audio/player/state"},
+			want: recordedRequest{Method: http.MethodGet, Path: "/users/uid/audio/player"},
 		},
 		{
 			name: "AudioPlay",
@@ -192,7 +192,7 @@ func TestClientCoreActionEndpoints(t *testing.T) {
 			call: func(ctx context.Context, c *Client) error {
 				return c.Autopilot().SetLevelSuggestions(ctx, true)
 			},
-			want:    recordedRequest{Method: http.MethodPost, Path: "/users/uid/level-suggestions-mode"},
+			want:    recordedRequest{Method: http.MethodPut, Path: "/users/uid/level-suggestions-mode"},
 			bodyHas: `"enabled":true`,
 		},
 		{
@@ -200,7 +200,7 @@ func TestClientCoreActionEndpoints(t *testing.T) {
 			call: func(ctx context.Context, c *Client) error {
 				return c.Autopilot().SetSnoreMitigation(ctx, false)
 			},
-			want:    recordedRequest{Method: http.MethodPost, Path: "/users/uid/autopilotDetails/snoringMitigation"},
+			want:    recordedRequest{Method: http.MethodPut, Path: "/users/uid/autopilotDetails/snoringMitigation"},
 			bodyHas: `"enabled":false`,
 		},
 		{
@@ -217,7 +217,7 @@ func TestClientCoreActionEndpoints(t *testing.T) {
 				return c.Base().SetAngle(ctx, 3, 4)
 			},
 			want:    recordedRequest{Method: http.MethodPost, Path: "/users/uid/base/angle"},
-			bodyHas: `"foot":4`,
+			bodyHas: `"legAngle":4`,
 		},
 		{
 			name: "BasePresets",

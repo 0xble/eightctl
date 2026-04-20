@@ -1,7 +1,9 @@
 package tokencache
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,8 +14,9 @@ import (
 )
 
 const (
-	serviceName = "eightctl"
-	tokenKey    = "oauth-token"
+	serviceName        = "eightctl"
+	tokenKey           = "oauth-token"
+	storageKeyV2Prefix = tokenKey + "_v2_"
 )
 
 type CachedToken struct {
@@ -31,8 +34,11 @@ type Identity struct {
 	Email    string
 }
 
-var openKeyring = defaultOpenKeyring
-var fallbackCachePathFunc = defaultFallbackCachePath
+var (
+	openKeyring           = defaultOpenKeyring
+	openFileKeyring       = defaultOpenFileKeyring
+	fallbackCachePathFunc = defaultFallbackCachePath
+)
 
 // SetOpenKeyringForTest swaps the keyring opener; it returns a restore func.
 // Not safe for concurrent tests; intended for isolated test scenarios.
@@ -40,6 +46,14 @@ func SetOpenKeyringForTest(fn func() (keyring.Keyring, error)) (restore func()) 
 	prev := openKeyring
 	openKeyring = fn
 	return func() { openKeyring = prev }
+}
+
+// SetOpenFileKeyringForTest swaps the file-backed keyring opener; it returns a
+// restore func. Not safe for concurrent tests.
+func SetOpenFileKeyringForTest(fn func() (keyring.Keyring, error)) (restore func()) {
+	prev := openFileKeyring
+	openFileKeyring = fn
+	return func() { openFileKeyring = prev }
 }
 
 // SetFallbackPathForTest overrides the fallback token file path for tests.
@@ -50,6 +64,10 @@ func SetFallbackPathForTest(path string) (restore func()) {
 }
 
 func defaultOpenKeyring() (keyring.Keyring, error) {
+	return defaultOpenFileKeyring()
+}
+
+func defaultOpenFileKeyring() (keyring.Keyring, error) {
 	home, _ := os.UserHomeDir()
 	return keyring.Open(keyring.Config{
 		ServiceName: serviceName,
@@ -98,12 +116,17 @@ func Save(id Identity, token string, expiresAt time.Time, userID string) error {
 	return nil
 }
 
-func Load(id Identity, expectedUserID string) (*CachedToken, error) {
+// Load returns the cached token for the given Identity, if present and unexpired.
+// Tokens are namespaced by Identity (base URL + client ID + email) — not by
+// UserID — because a single OAuth principal (email) can legitimately act on
+// multiple household userIDs. The cached UserID is informational metadata for
+// callers that want to recover "which userID was primary at auth time."
+func Load(id Identity) (*CachedToken, error) {
 	if ring, err := openKeyring(); err == nil {
 		key := cacheKey(id)
 		item, err := ring.Get(key)
 		if err == keyring.ErrKeyNotFound && id.Email == "" {
-			// No email specified: attempt to find a single matching token for this base/client.
+			// No email yet: if exactly one token exists for this base+client, use it.
 			if alt, findErr := findSingleForClient(ring, id); findErr == nil {
 				key = alt
 				item, err = ring.Get(key)
@@ -120,9 +143,6 @@ func Load(id Identity, expectedUserID string) (*CachedToken, error) {
 				_ = ring.Remove(key)
 				return nil, keyring.ErrKeyNotFound
 			}
-			if expectedUserID != "" && cached.UserID != "" && cached.UserID != expectedUserID {
-				return nil, keyring.ErrKeyNotFound
-			}
 			return cached, nil
 		}
 		log.Debug("keyring get failed", "error", err)
@@ -130,7 +150,7 @@ func Load(id Identity, expectedUserID string) (*CachedToken, error) {
 		log.Debug("keyring open failed (load)", "error", err)
 	}
 
-	cached, err := loadFallbackToken(id, expectedUserID)
+	cached, err := loadFallbackToken(id)
 	if err != nil {
 		return nil, err
 	}
@@ -160,6 +180,36 @@ func cacheKey(id Identity) string {
 	return tokenKey + ":" + base + "|" + id.ClientID + "|" + email
 }
 
+func storageKey(id Identity) string {
+	return storageKeyV2Prefix + base64.RawURLEncoding.EncodeToString([]byte(cacheKey(id)))
+}
+
+func identityKeyFromStorageKey(key string) (string, bool) {
+	if strings.HasPrefix(key, storageKeyV2Prefix) {
+		raw := strings.TrimPrefix(key, storageKeyV2Prefix)
+		decoded, err := base64.RawURLEncoding.DecodeString(raw)
+		if err != nil {
+			return "", false
+		}
+		return string(decoded), true
+	}
+	if strings.HasPrefix(key, tokenKey+":") {
+		return key, true
+	}
+	return "", false
+}
+
+func isIgnorableLegacyKeyError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var pathErr *os.PathError
+	if errors.As(err, &pathErr) {
+		return true
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "filename, directory name, or volume label syntax is incorrect")
+}
+
 // findSingleForClient finds a single cached key for the given base/client when email is unknown.
 // Returns ErrKeyNotFound if none or multiple exist.
 func findSingleForClient(ring keyring.Keyring, id Identity) (string, error) {
@@ -170,7 +220,8 @@ func findSingleForClient(ring keyring.Keyring, id Identity) (string, error) {
 	prefix := tokenKey + ":" + strings.TrimSuffix(strings.ToLower(strings.TrimSpace(id.BaseURL)), "/") + "|" + id.ClientID + "|"
 	matches := []string{}
 	for _, k := range keys {
-		if strings.HasPrefix(k, prefix) {
+		identityKey, ok := identityKeyFromStorageKey(k)
+		if ok && strings.HasPrefix(identityKey, prefix) {
 			matches = append(matches, k)
 		}
 	}
@@ -256,7 +307,7 @@ func clearFallbackToken(key string) error {
 	return saveFallbackMap(m)
 }
 
-func loadFallbackToken(id Identity, expectedUserID string) (*CachedToken, error) {
+func loadFallbackToken(id Identity) (*CachedToken, error) {
 	m, err := loadFallbackMap()
 	if err != nil {
 		return nil, err
@@ -276,9 +327,6 @@ func loadFallbackToken(id Identity, expectedUserID string) (*CachedToken, error)
 	if time.Now().After(token.ExpiresAt) {
 		delete(m, key)
 		_ = saveFallbackMap(m)
-		return nil, keyring.ErrKeyNotFound
-	}
-	if expectedUserID != "" && token.UserID != "" && token.UserID != expectedUserID {
 		return nil, keyring.ErrKeyNotFound
 	}
 	return &token, nil

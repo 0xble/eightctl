@@ -246,12 +246,9 @@ func TestSetAwayMode(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	old := appAPIBaseURL
-	appAPIBaseURL = srv.URL
-	defer func() { appAPIBaseURL = old }()
-
 	c := New("e", "p", "uid-123", "", "")
 	c.BaseURL = srv.URL
+	c.AppURL = srv.URL
 	c.token = "t"
 	c.tokenExp = time.Now().Add(time.Hour)
 	c.HTTP = srv.Client()
@@ -263,8 +260,8 @@ func TestSetAwayMode(t *testing.T) {
 	if gotMethod != http.MethodPut {
 		t.Errorf("method = %q, want PUT", gotMethod)
 	}
-	if gotPath != "/users/uid-123/away-mode" {
-		t.Errorf("path = %q, want /users/uid-123/away-mode", gotPath)
+	if gotPath != "/v1/users/uid-123/away-mode" {
+		t.Errorf("path = %q, want /v1/users/uid-123/away-mode", gotPath)
 	}
 	period, ok := gotBody["awayPeriod"].(map[string]any)
 	if !ok {
@@ -278,8 +275,8 @@ func TestSetAwayMode(t *testing.T) {
 	if err := c.SetAwayMode(context.Background(), "uid-456", false); err != nil {
 		t.Fatalf("SetAwayMode off: %v", err)
 	}
-	if gotPath != "/users/uid-456/away-mode" {
-		t.Errorf("path = %q, want /users/uid-456/away-mode", gotPath)
+	if gotPath != "/v1/users/uid-456/away-mode" {
+		t.Errorf("path = %q, want /v1/users/uid-456/away-mode", gotPath)
 	}
 	period, ok = gotBody["awayPeriod"].(map[string]any)
 	if !ok {

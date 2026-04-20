@@ -15,14 +15,15 @@ import (
 func useTempKeyring(t *testing.T) func() {
 	t.Helper()
 	tmp := t.TempDir()
-	restoreKeyring := tokencache.SetOpenKeyringForTest(func() (keyring.Keyring, error) {
+	opener := func() (keyring.Keyring, error) {
 		return keyring.Open(keyring.Config{
 			ServiceName:      "eightctl-test",
 			AllowedBackends:  []keyring.BackendType{keyring.FileBackend},
 			FileDir:          filepath.Join(tmp, "keyring"),
 			FilePasswordFunc: func(_ string) (string, error) { return "test-pass", nil },
 		})
-	})
+	}
+	restoreKeyring := tokencache.SetOpenKeyringForTest(opener)
 	restoreFallback := tokencache.SetFallbackPathForTest(filepath.Join(tmp, "token-cache.json"))
 	restore := func() {
 		restoreKeyring()
@@ -62,5 +63,27 @@ func TestRequireAuthFieldsFailsWithoutCacheOrCreds(t *testing.T) {
 	err := requireAuthFields()
 	if err == nil {
 		t.Fatalf("expected missing credentials error")
+	}
+}
+
+// When an explicit user_id is already set (e.g. via --user-id or config),
+// the cached UserID must not overwrite it. Households share one cached token
+// across multiple userIDs, so clobbering would silently retarget commands.
+func TestRequireAuthFieldsDoesNotClobberExplicitUserID(t *testing.T) {
+	useTempKeyring(t)
+	resetViper(t)
+
+	viper.Set("user_id", "explicit-user")
+
+	cl := client.New("", "", "explicit-user", "", "")
+	if err := tokencache.Save(cl.Identity(), "tok", time.Now().Add(time.Hour), "cached-user"); err != nil {
+		t.Fatalf("save cache: %v", err)
+	}
+
+	if err := requireAuthFields(); err != nil {
+		t.Fatalf("requireAuthFields should pass with cache: %v", err)
+	}
+	if got := viper.GetString("user_id"); got != "explicit-user" {
+		t.Fatalf("explicit user_id was overwritten, got %q", got)
 	}
 }

@@ -219,7 +219,7 @@ func TestClientDataActionEndpoints(t *testing.T) {
 				_, err := c.ListTracks(ctx)
 				return err
 			},
-			want: recordedRequest{Method: http.MethodGet, Path: "/audio/tracks"},
+			want: recordedRequest{Method: http.MethodGet, Path: "/users/uid/audio/tracks"},
 		},
 		{
 			name: "ReleaseFeatures",
