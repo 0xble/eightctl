@@ -31,7 +31,7 @@ func (c *Client) GetPresence(ctx context.Context, from, to, timezone string) (bo
 	now := time.Now()
 	from, to = resolvePresenceWindow(now, from, to)
 	q := url.Values{}
-	q.Set("tz", resolveTZ(timezone))
+	q.Set("tz", timezone)
 	q.Set("from", from)
 	q.Set("to", to)
 	q.Set("include-main", "false")

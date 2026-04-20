@@ -108,6 +108,7 @@ func Load(id Identity) (*CachedToken, error) {
 		key := cacheKey(id)
 		item, err := ring.Get(key)
 		if err == keyring.ErrKeyNotFound && id.Email == "" {
+			// No email yet: if exactly one token exists for this base+client, use it.
 			if alt, findErr := findSingleForClient(ring, id); findErr == nil {
 				key = alt
 				item, err = ring.Get(key)

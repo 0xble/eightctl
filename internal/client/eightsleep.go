@@ -276,7 +276,7 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 
 const maxRetries = 3
 
-// doApp routes requests through AppURL with the same retry/fallback logic as do().
+// doApp routes to AppURL without cross-base fallback (app-api has no sibling host).
 func (c *Client) doApp(ctx context.Context, method, path string, query url.Values, body any, out any) error {
 	return c.doWithBase(ctx, c.AppURL, method, path, query, body, out, false, 0)
 }
@@ -476,8 +476,8 @@ func (c *Client) SetAwayMode(ctx context.Context, userID string, away bool) erro
 	} else {
 		payload = map[string]any{"awayPeriod": map[string]string{"end": ts}}
 	}
-	u := fmt.Sprintf("%s/users/%s/away-mode", appAPIBaseURL, userID)
-	return c.doURL(ctx, http.MethodPut, u, payload, nil)
+	path := fmt.Sprintf("/v1/users/%s/away-mode", userID)
+	return c.doApp(ctx, http.MethodPut, path, nil, payload, nil)
 }
 
 // TempStatus represents current temperature state payload.
@@ -559,23 +559,6 @@ func (c *Client) GetSleepDay(ctx context.Context, date string, timezone string) 
 		return nil, fmt.Errorf("no sleep data for %s", date)
 	}
 	return &res.Days[0], nil
-}
-
-// resolveTZ converts the CLI-convention zone "" or "local" to an IANA zone
-// name. Eight Sleep's tz param rejects the literal strings "local" and
-// "Local" (the latter is what time.Local.String() returns when the system
-// has no zoneinfo). UTC is used as a last-resort fallback and logged so
-// off-by-hours trend data is not presented as correct.
-func resolveTZ(tz string) string {
-	if tz != "" && tz != "local" {
-		return tz
-	}
-	name := time.Local.String()
-	if name == "" || name == "Local" {
-		log.Warn("system timezone unresolved; defaulting to UTC. Pass --timezone <IANA> to override.")
-		return "UTC"
-	}
-	return name
 }
 
 // ListTracks returns audio tracks metadata.
