@@ -16,23 +16,12 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
-
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: ${{ runner.os }}-go-
-
-      - name: Install gofumpt
-        run: go install mvdan.cc/gofumpt@v0.7.0
+          go-version-file: go.mod
+          cache: true
 
       - name: Format check (gofumpt)
         run: |
-          CHANGED=$(gofumpt -l .)
+          CHANGED=$(go tool mvdan.cc/gofumpt -l .)
           if [ -n "$CHANGED" ]; then
             echo "gofumpt would reformat:" >&2
             echo "$CHANGED" >&2
@@ -40,9 +29,19 @@ jobs:
           fi
 
       - name: Lint
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v9.2.0
         with:
-          version: v2.1
+          version: v2.10.1
 
       - name: Test
         run: go test ./...
+
+      - name: Coverage
+        run: |
+          go test \
+            -coverpkg=./internal/client,./internal/config,./internal/daemon,./internal/output,./internal/tokencache \
+            ./internal/client ./internal/config ./internal/daemon ./internal/output ./internal/tokencache \
+            -coverprofile=coverage.out
+          COVERAGE=$(go tool cover -func=coverage.out | awk '/^total:/ {gsub("%", "", $3); print $3}')
+          echo "core coverage: ${COVERAGE}%"
+          awk -v coverage="$COVERAGE" 'BEGIN { exit !(coverage >= 85.0) }'
