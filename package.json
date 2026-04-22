@@ -1,6 +1,6 @@
 {
   "name": "eightctl",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Go CLI for Eight Sleep Pods, with pnpm scripts for convenience",
   "engines": {
@@ -11,7 +11,8 @@
     "start": "go run ./cmd/eightctl",
     "build": "mkdir -p bin && go build -o bin/eightctl ./cmd/eightctl",
     "lint": "golangci-lint run ./...",
-    "format": "gofumpt -w .",
-    "test": "go test ./..."
+    "format": "go tool mvdan.cc/gofumpt -w .",
+    "test": "go test ./...",
+    "coverage": "make coverage"
   }
 }
