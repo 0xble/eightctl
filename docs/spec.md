@@ -81,8 +81,9 @@ Audio/temperature data helpers:
 
 ## Testing & Quality Gates
 - `go test ./...` (fast compile checks) — run before handoff.
-- Formatting via `gofumpt`; prefer `staticcheck`/additional linting later as needed.
-- Live checks: `eightctl status`, `metrics summary`, `tempmode nap status` with test creds to validate auth + userId resolution.
+- `make coverage` enforces >=85% coverage on core packages (`internal/client`, `config`, `daemon`, `output`, `tokencache`).
+- Formatting via tracked `go tool mvdan.cc/gofumpt`; linting via golangci-lint v2.
+- Live checks: `eightctl status`, `metrics trends`, `tempmode nap status` with test creds to validate auth + userId resolution.
 
 ## Prior Work (references)
 - Go CLI `clim8`: https://github.com/blacktop/clim8
