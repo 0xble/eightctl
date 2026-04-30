@@ -29,7 +29,7 @@ const (
 
 // authURL and appAPIBaseURL are vars so tests can point them at local servers.
 var (
-	authURL      = "https://auth-api.8slp.net/v1/tokens"
+	authURL       = "https://auth-api.8slp.net/v1/tokens"
 	appAPIBaseURL = "https://app-api.8slp.net/v1"
 )
 
@@ -570,6 +570,19 @@ type AudioTrack struct {
 
 func (c *Client) ListTracks(ctx context.Context) ([]AudioTrack, error) {
 	return c.Audio().Tracks(ctx)
+}
+
+// resolveTZ converts the CLI-convention zone "" or "local" to an IANA zone.
+func resolveTZ(tz string) string {
+	if tz != "" && tz != "local" {
+		return tz
+	}
+	name := time.Local.String()
+	if name == "" || name == "Local" {
+		log.Warn("system timezone unresolved; defaulting to UTC. Pass --timezone <IANA> to override.")
+		return "UTC"
+	}
+	return name
 }
 
 // ReleaseFeature represents release features payload.

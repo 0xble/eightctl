@@ -1,6 +1,8 @@
 package tokencache
 
 import (
+	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -202,5 +204,56 @@ func TestDefaultKeyringUsesFileBackendOnly(t *testing.T) {
 	// We verify by doing a simple Keys() call which should return promptly.
 	if _, err := ring.Keys(); err != nil {
 		t.Fatalf("ring.Keys: %v", err)
+	}
+}
+
+func TestDefaultOpenFileKeyring(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	ring, err := defaultOpenFileKeyring()
+	if err != nil {
+		t.Fatalf("defaultOpenFileKeyring: %v", err)
+	}
+	item := keyring.Item{Key: "k", Data: []byte("v")}
+	if err := ring.Set(item); err != nil {
+		t.Fatalf("Set: %v", err)
+	}
+	got, err := ring.Get("k")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if string(got.Data) != "v" {
+		t.Fatalf("data = %q", got.Data)
+	}
+}
+
+func TestIdentityKeyFromStorageKey(t *testing.T) {
+	id := Identity{BaseURL: "https://api.example.com", ClientID: "client", Email: "user@example.com"}
+	raw, ok := identityKeyFromStorageKey(storageKey(id))
+	if !ok || raw != cacheKey(id) {
+		t.Fatalf("decoded = %q ok=%v", raw, ok)
+	}
+	if raw, ok := identityKeyFromStorageKey(cacheKey(id)); !ok || raw != cacheKey(id) {
+		t.Fatalf("legacy decoded = %q ok=%v", raw, ok)
+	}
+	if _, ok := identityKeyFromStorageKey(storageKeyV2Prefix + "not@base64"); ok {
+		t.Fatalf("invalid storage key should fail")
+	}
+	if _, ok := identityKeyFromStorageKey("other"); ok {
+		t.Fatalf("unrelated key should fail")
+	}
+}
+
+func TestIgnorableLegacyKeyError(t *testing.T) {
+	if isIgnorableLegacyKeyError(nil) {
+		t.Fatalf("nil should not be ignorable")
+	}
+	if !isIgnorableLegacyKeyError(&os.PathError{Op: "open", Path: "x", Err: os.ErrNotExist}) {
+		t.Fatalf("path error should be ignorable")
+	}
+	if !isIgnorableLegacyKeyError(errors.New("The filename, directory name, or volume label syntax is incorrect.")) {
+		t.Fatalf("windows legacy key error should be ignorable")
+	}
+	if isIgnorableLegacyKeyError(errors.New("boom")) {
+		t.Fatalf("generic error should not be ignorable")
 	}
 }
