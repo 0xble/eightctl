@@ -2,8 +2,10 @@
 
 ## Background
 
-Maintained fork: `0xble/eightctl` of `steipete/eightctl`; maintained and
-upstream-default branch `main`. Canonical checkout: `/Users/brianle/Repos/eightctl`.
+Maintained fork: `0xble/eightctl` of `steipete/eightctl`; the maintained branch is
+`main`. The named upstream branch means upstream's live default branch, resolved on
+every run before fetching; it is not statically pinned to `main`. Canonical checkout:
+`/Users/brianle/Repos/eightctl`.
 Accepted upstream baseline: `db84b936e0ba107209864508b434ff0b2761b553` (fetched
 2026-09-09). Publish only to `origin`; never push to `upstream`.
 
@@ -19,7 +21,8 @@ Accepted upstream baseline: `db84b936e0ba107209864508b434ff0b2761b553` (fetched
 
 ### EIGHTCTL-001: `fix: FileBackend-only keyring + bounded retry on 401/429`
 
-- **Status:** Active; source difference confirmed against `upstream/main` on 2026-09-09.
+- **Status:** Active; source difference confirmed against upstream's then-current
+  default branch on 2026-09-09.
 - **Provenance:** `159f3223ff15437c3dc2dd0ea2f3657819f9ad60`; follow-up test
   `8fa268aff47c1279426f93bd0d71f9349f3cceff`.
 - **Surfaces/invariant:** `internal/tokencache/{tokencache.go,tokencache_test.go}`
@@ -34,7 +37,8 @@ Accepted upstream baseline: `db84b936e0ba107209864508b434ff0b2761b553` (fetched
 
 ### EIGHTCTL-002: `fix: restore upstream APIs dropped during rebase conflict resolution`
 
-- **Status:** Active; source difference confirmed against `upstream/main` on 2026-09-09.
+- **Status:** Active; source difference confirmed against upstream's then-current
+  default branch on 2026-09-09.
 - **Provenance:** `3fbf3eaee59dbf78faf46213942b6b46d624a6d4`; **surfaces/invariant:**
   `internal/client/{eightsleep.go,schedules.go,base.go}` and `internal/cmd/` retain
   restored API paths and payload compatibility.
@@ -45,14 +49,15 @@ Accepted upstream baseline: `db84b936e0ba107209864508b434ff0b2761b553` (fetched
 
 ### EIGHTCTL-003: `fix(fork): retain fork install and version identity`
 
-- **Status:** Active; source difference confirmed against `upstream/main` on 2026-09-09.
+- **Status:** Active; source difference confirmed against upstream's then-current
+  default branch on 2026-09-09.
 - **Provenance:** `d3a42879f4032eb138b44d04595354eed5209f19`,
   `746ac4766c2b8f661a8b116e0f9b62684cc34c6f`, and
   `aa942141be851a78c13dbb4f8ee87a5c48797f2d`.
 - **Surfaces/invariant:** `bin/{upgrade,smoke}`, `internal/cmd/version.go`, and
   `package.json` keep the fork-specific upgrade/smoke and version identity coherent
   without performing installation.
-- **Proof:** `sh -n bin/upgrade bin/smoke && pnpm build`; **rollback:** revert this
+- **Proof:** `sh -n bin/upgrade bin/smoke && go build ./cmd/eightctl`; **rollback:** revert this
   family together only after equivalent build, version, and upgrade/smoke coverage.
   **Upstream issue/PR:** untracked; audit 2026-09-09 records no association, not an
   absence claim. **Retire when:** a separately authorized runtime migration removes
@@ -60,19 +65,24 @@ Accepted upstream baseline: `db84b936e0ba107209864508b434ff0b2761b553` (fetched
 
 ## Update
 
-Every run fetches `origin` and `upstream`, reconciles `main` onto the latest
-`upstream/main`, preserves only recorded active patches, updates this register with
-any patch change/retirement, and runs focused proof plus `pnpm test && pnpm build`
-before authorized publication. Missing or stale coverage blocks publication.
-Immediately before `Updated` or `Already current`, fetch `upstream` again and
-require zero upstream-only commits; otherwise report `Blocked` with stage, refs,
-and evidence. Publish to `origin` or report that concrete blocker.
+Every run resolves upstream's live default branch before fetching it, then fetches
+`origin` and `upstream` separately, reconciles `main` onto the latest
+`upstream/$UPSTREAM_DEFAULT`, preserves only recorded active patches, updates this
+register with any patch change/retirement, and runs focused proof plus
+`go test ./... && go build ./cmd/eightctl` before authorized publication. Missing or
+stale coverage blocks publication. Immediately before `Updated` or `Already current`,
+resolve and fetch upstream's live default branch again and require zero upstream-only
+commits; otherwise report `Blocked` with stage, refs, and evidence. Publish to
+`origin` or report that concrete blocker.
 
 ## Verify
 
 ```text
+UPSTREAM_DEFAULT="$(git ls-remote --symref upstream HEAD | awk '/^ref:/ {sub("refs/heads/", "", $2); print $2; exit}')"
+test -n "$UPSTREAM_DEFAULT"
+git fetch --prune upstream "refs/heads/$UPSTREAM_DEFAULT:refs/remotes/upstream/$UPSTREAM_DEFAULT"
 git diff --check
-git rev-list --left-right --count upstream/main...main
+git rev-list --left-right --count "upstream/$UPSTREAM_DEFAULT...main"
 ```
 
 Require a fresh final fetch with zero upstream-only commits and, after authorized
