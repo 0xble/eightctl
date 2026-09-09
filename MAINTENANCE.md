@@ -43,6 +43,21 @@ Accepted upstream baseline: `db84b936e0ba107209864508b434ff0b2761b553` (fetched
 - **Upstream issue/PR:** untracked; audit 2026-09-09 found none recorded. **Retire
   when:** a released upstream descendant passes this proof without these changes.
 
+### EIGHTCTL-003: `fix(fork): retain fork install and version identity`
+
+- **Status:** Active; source difference confirmed against `upstream/main` on 2026-09-09.
+- **Provenance:** `d3a42879f4032eb138b44d04595354eed5209f19`,
+  `746ac4766c2b8f661a8b116e0f9b62684cc34c6f`, and
+  `aa942141be851a78c13dbb4f8ee87a5c48797f2d`.
+- **Surfaces/invariant:** `bin/{upgrade,smoke}`, `internal/cmd/version.go`, and
+  `package.json` keep the fork-specific upgrade/smoke and version identity coherent
+  without performing installation.
+- **Proof:** `sh -n bin/upgrade bin/smoke && pnpm build`; **rollback:** revert this
+  family together only after equivalent build, version, and upgrade/smoke coverage.
+  **Upstream issue/PR:** untracked; audit 2026-09-09 records no association, not an
+  absence claim. **Retire when:** a separately authorized runtime migration removes
+  the fork distribution flow.
+
 ## Update
 
 Every run fetches `origin` and `upstream`, reconciles `main` onto the latest
