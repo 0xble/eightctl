@@ -2,65 +2,119 @@
 
 All notable changes to this project are documented here.
 
-## Fork Convention (0xble)
+## Fork convention (0xble)
 
-- Upstream entries are implicit by default (no prefix required).
-- Prefix fork-authored divergences with `[FORK]`.
-- Prefix uncommitted/local-only work with `[LOCAL]`.
+- Upstream entries are unprefixed.
+- Fork-only divergences are marked `[FORK]`.
 
-This project has not cut tagged releases yet. The entries below reconstruct the
-release history from git.
+The first tagged release is 0.2.0; the 0.1.0 section reconstructs earlier project history from git.
 
-## 0.2.0 - Unreleased
+## Unreleased
 
-### Added
+### Fork divergence
 
-- Away mode via `away on|off`.
-- Side-aware household targeting for `status`, `on`, `off`, `temp`, and `away`
-  with `--side` and `--target-user-id`.
-- Metrics trends telemetry and side-aware presence/sleep data handling.
-- GoReleaser workflow and Linux arm64 build target.
-- Core coverage gate with regression tests for client endpoint wrappers,
-  configuration, daemon scheduling, output formatting, and token cache helpers.
+- [FORK] Retain a file-backed-only token keyring and bounded authentication retries for noninteractive use.
+- [FORK] Retain compatibility metrics command APIs while upstream removes retired endpoints.
+- [FORK] Track upstream release bases with the `-0xble.0.1.0` version suffix.
 
-### Changed
+## 0.2.5 - 2026-09-07
 
-- [FORK] Reset the fork version suffix to `0.2.0-0xble.0.1.0` after syncing the
-  upstream `0.2.0` base.
-- OAuth now uses the current token endpoint contract with
-  `application/x-www-form-urlencoded` bodies.
-- API calls were updated for current Eight Sleep cloud endpoints.
-- `schedule list` now surfaces the Autopilot smart schedule because the older
-  temperature schedule CRUD endpoints are no longer available.
-- `--timezone local` now resolves to an IANA timezone before making API
-  requests, with UTC fallback when local zoneinfo is unavailable.
-- Documentation now reflects removed API-backed behavior, timezone handling,
-  and the current command surface.
-- Release automation now uses `.goreleaser.yaml`, supports tag backfills, and
-  includes a Linux arm64 target.
-- Release packaging configuration now uses the current GoReleaser archive fields.
-- Lint configuration was prepared for golangci-lint v2.
-- Go module now targets Go 1.26.4 and tracks `gofumpt` with the Go tool directive.
-- Dependencies and CI tooling were updated to current stable versions, including pnpm 11.
+### Highlights
+
+Logout now reports incomplete token-cache cleanup, and local source builds gain a portable install helper with macOS signature verification.
+
+- Fixed logout reporting success when a reachable token store refuses deletion, including permission, read-only filesystem, and I/O failures. Thanks @omarshahine.
+- Added `make build` and `make install`, with a configurable destination, directory creation, and macOS signing and verification after replacement. Thanks @omarshahine.
+- Updated Ultraviolet for terminal rendering, resize, and styled-content parsing fixes.
+- Updated repository-owned GoReleaser tooling to 2.18.1 for archive-path fixes, dependency security updates, and temporary-directory cleanup improvements.
+
+## 0.2.4 - 2026-09-05
+
+### Highlights
+
+Away-state readback, reliable household targeting and recovery, and timezone-correct daemon schedules make travel automation easier to check.
+
+- Fixed left/right targeting when one household member is away, and added `away status` to read the cloud-reported state for the household or a selected side/user. Thanks @omarshahine.
+- Fixed `away off --both` reporting success without clearing away mode when all household members are away; fail explicitly when household user IDs cannot be resolved. Thanks @omarshahine.
+- Fixed daemon schedules being missed when the configured timezone and host timezone fall on different dates.
+- Fixed source installs reporting an outdated development version and added `--version` alongside `version`.
+- Updated to Charm Log 2.0.1 for terminal-aware colors and complete severity labels, go-runewidth 0.0.29 for width fixes, and the maintained YAML v3 parser.
+- Raised the minimum Go version to 1.26.7 for HTTP fixes and prefer Go 1.26.8; updated the optional development scripts to pnpm 12.3.4 while retaining Node.js 24 support.
+
+## 0.2.3 - 2026-08-14
+
+### Release engineering
+
+- Raised the minimum Go version to 1.26.6 for the latest standard-library security fixes.
+- Made release retries verify and reuse an already-published release, added release metadata consistency checks, and moved Go dependency-graph submission into a repository-owned workflow.
+## 0.2.2 - 2026-08-02
 
 ### Fixed
 
-- Release archives now report the tagged version from `eightctl version`, include the matching changelog section in GitHub Release notes, and use a pinned GoReleaser version.
-- Reused cached OAuth tokens across household user IDs.
-- Resolved away-mode targeting correctly for left/right/solo household sides.
-- Added keychain fallback behavior for cached token lookup.
-- Fixed `--date`, `--from`, and `--to` handling by reading Cobra flags directly.
-- Prevented travel subcommands from clobbering persistent Viper keys.
+- Fixed `daemon --config` discovery so scheduled routines use the configuration file selected on the command line.
 
-### Removed
+### Documentation
 
-- Removed unavailable `metrics summary` and `metrics aggregate` behavior after
-  Eight Sleep endpoint changes; use `metrics trends` instead.
+- Reworked the README around installation, first controls, configuration, structured output, and linked reference material.
 
-### Tests
+## 0.2.1 - 2026-07-17
 
-- Added regression coverage for OAuth request encoding, side-aware targeting,
-  presence parsing, timezone resolution, and token cache lookup.
+### Highlights
+
+- First release through the unified signed pipeline, with Developer ID signing, Apple notarization, independent draft verification, and publication only after every verifier passes.
+
+### Release engineering
+
+- Migrated release automation to the immutable `openclaw/release-workflows@v1.0.0-alpha.2` Go CLI pipeline, which freezes a protected green `main`, creates an annotated tag, builds the cross-platform matrix, signs and notarizes macOS binaries, verifies the credential-free draft, publishes it, and opens the next development cycle.
+- Retained the former GoReleaser workflow as a documented manual-only legacy fallback, removing its tag trigger so a unified release cannot double-fire.
+- Validated the release stack with Go 1.26.5, `actions/setup-go` 7.0.0, GoReleaser 2.17.0 and action 7.2.3, golangci-lint 2.12.2 and action 9.3.0, and pnpm 11.14.0.
+- Refreshed `github.com/mattn/go-isatty` to 0.0.23 after a full direct and transitive Go dependency sweep.
+
+## 0.2.0 - 2026-07-17
+
+### Highlights
+
+- Added side-aware household control so `status`, `on`, `off`, `temp`, and `away` can target `left`, `right`, `solo`, all discovered users, or an explicit user.
+- Added `away on|off` for pausing and resuming pod conditioning during travel.
+- Restored reliable authentication and data access with the current OAuth contract, bounded retries, transparent gzip handling, and resilient token caching.
+- Modernized metrics and schedules around the working trends and Autopilot APIs while removing commands backed by retired endpoints.
+
+### Controls and targeting
+
+- Added `away on|off`, including household-wide `--both`, side targeting, and explicit user targeting. Thanks @omarshahine.
+- Added side-aware household discovery and default all-target behavior for `status`, `on`, `off`, and `temp`. Thanks @igormf.
+- Fixed side discovery while Away mode is active by using authoritative device mappings instead of the API's `away` sentinel. Thanks @omarshahine.
+- Improved `status` output with discovered `left`, `right`, and `solo` targeting modes.
+
+### Metrics and API compatibility
+
+- Added timezone-aware trends telemetry, date-ranged presence queries, and side-aware sleep and presence handling. Thanks @igormf.
+- Retargeted `schedule list` to the current Autopilot smart schedule and device-owner lookup to the supported device response. Thanks @omarshahine.
+- Resolved `--timezone local` to an IANA timezone with a visible UTC fallback when local zone information is unavailable. Thanks @omarshahine and @dtrinh.
+- Fixed `--date`, `--from`, and `--to` handling so sleep and metrics commands use their own Cobra flags. Thanks @omarshahine.
+- Prevented travel subcommands from overwriting persistent Viper keys and renamed trip payload timezone input to `--trip-timezone`. Thanks @omarshahine.
+- Removed retired schedule CRUD, `metrics summary`, and `metrics aggregate` commands in favor of working Autopilot and trends paths. Thanks @omarshahine.
+- Removed unavailable `metrics insights` behavior and made retired metrics names fail with an unknown-command error. Thanks @Abhijay.
+
+### Authentication and reliability
+
+- Updated OAuth to the form-encoded token contract with configured app credentials, removed the broken legacy login fallback, restored transparent gzip decoding, and bounded 401/429 retries. Thanks @omarshahine, @petersentaylor, and @davidfencik.
+- Reused cached OAuth tokens across household user IDs to avoid unnecessary password grants and rate-limit bursts. Thanks @omarshahine.
+- Added file-backed token-cache fallback when the primary OS keychain cannot read or write tokens. Thanks @omarshahine.
+- Improved token-cache lookup so cached authentication can work without an email when the cached account is unambiguous.
+
+### Release engineering and quality
+
+- Added GoReleaser archives for macOS, Linux, and Windows on amd64 and arm64, including manual tag backfills.
+- Embedded the tagged version in release binaries and generated GitHub Release notes from the matching finalized changelog section.
+- Added release-note and packaged-version smoke tests, current GoReleaser configuration, and tag validation that rejects `Unreleased` headings.
+- Added an 85% core coverage gate and regression coverage for authentication, endpoint wrappers, targeting, presence, timezone resolution, daemon scheduling, output, and token caching.
+- Updated the toolchain and direct dependencies to current stable releases, including Go 1.26.5, pnpm 11.13.1, `actions/setup-go` 7.0.0, GoReleaser 2.17.0, and golangci-lint 2.12.2.
+- Synchronized the README and specification with the implemented command surface and current API limitations.
+
+### Release notes
+
+- Released with live-provider smoke waived by maintainer for this first tagged release.
 
 ## 0.1.0 - 2025-12-12
 

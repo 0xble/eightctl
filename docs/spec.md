@@ -19,8 +19,10 @@ Eight Sleep Pod power/control + data-export CLI, written in Go. Targets macOS/Li
 ## CLI Surface (implemented)
 Core: `on`, `off`, `temp <level>`, `status`, `whoami`, `logout`, `version`.
 
+`logout` removes the selected identity's local cached token from reachable stores; it does not revoke tokens at the service. Deletion failures from a reachable store produce a nonzero exit status, including after partial cleanup. An unavailable backend is tolerated if another opens; if neither opens, logout fails.
+
 Away mode:
-- `away on|off`
+- `away on|off|status`
 
 Schedules & daemon:
 - `schedule list` (Autopilot smart schedule)
@@ -45,10 +47,9 @@ Adjustable base:
 Device & maintenance:
 - `device info|peripherals|owner|warranty|online|priming-tasks|priming-schedule`
 
-Metrics & insights:
+Metrics:
 - `metrics trends --from --to`
 - `metrics intervals --id`
-- `metrics insights`
 - `sleep day --date`, `sleep range --from --to`
 - `presence [--from --to]`
 
@@ -75,12 +76,15 @@ Audio/temperature data helpers:
 - Logs via charmbracelet/log; `--verbose` for debug; `--quiet` hides config notice.
 - `status` should prefer discovered household targets when available and display `left` / `right` or inferred `solo`.
 - `on`, `off`, and `temp` should default to all discovered household targets unless narrowed with `--side` or `--target-user-id`.
-- `away` should default to the authenticated user's side, accept `--side` or `--target-user-id`, and use `--both` for the household.
+- `away on|off` default to the authenticated user's side, accept `--side` or `--target-user-id`, and use `--both` for the household.
+- `away status` reads all discovered household sides by default, or a selected `--side` / `--target-user-id`; table, JSON, CSV, and `--fields` work as with `status`. `--both` explicitly selects the household and conflicts with a single-target flag.
+- Away readback reports the cloud's state. The cloud is eventually consistent, so status may show the previous state after a write and does not immediately confirm that a change took effect.
 - `temp` accepts negative positional levels such as `temp -40` without requiring `--`.
 
 ## Daemon Behavior
 - Reads YAML schedule (time, action on|off|temp, temperature with unit), minute tick, executes once per day, PID guard, SIGINT/SIGTERM graceful stop.
 - Optional state sync compares expected schedule state vs device and reconciles.
+- Start with `eightctl daemon --config ~/.config/eightctl/config.yaml --dry-run` to validate scheduled actions without changing the pod.
 
 ## Testing & Quality Gates
 - `go test ./...` (fast compile checks) — run before handoff.

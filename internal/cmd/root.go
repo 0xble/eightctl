@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -16,8 +16,9 @@ import (
 
 var (
 	rootCmd = &cobra.Command{
-		Use:   "eightctl",
-		Short: "Control your Eight Sleep Pod from the terminal",
+		Use:     "eightctl",
+		Short:   "Control your Eight Sleep Pod from the terminal",
+		Version: Version,
 	}
 	logger = log.New(os.Stderr)
 )
@@ -31,6 +32,7 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
+	rootCmd.SetVersionTemplate("{{.Version}}\n")
 
 	rootCmd.PersistentFlags().String("config", "", "config file (default ~/.config/eightctl/config.yaml)")
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "verbose logging")
@@ -82,7 +84,7 @@ func init() {
 }
 
 func initConfig() {
-	cfg, err := config.Load(viper.GetString("config"), viper.GetBool("config-quiet"))
+	cfg, err := config.Load(viper.GetViper(), viper.GetString("config"), viper.GetBool("config-quiet"))
 	if err != nil {
 		log.Fatalf("config: %v", err)
 	}

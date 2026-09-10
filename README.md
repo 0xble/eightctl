@@ -1,88 +1,131 @@
-# 🛏️ eightctl — Control your sleep, from the terminal
+# eightctl 🛏️ — Control your sleep, from the terminal
 
-A modern Go CLI for Eight Sleep Pods. Control power/temperature, alarms, schedules, audio, base, autopilot, travel, household, and export sleep metrics. Includes a daemon for scheduled routines.
+[![CI](https://img.shields.io/github/actions/workflow/status/steipete/eightctl/ci.yml?branch=main&style=flat-square&label=ci)](https://github.com/steipete/eightctl/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/steipete/eightctl?style=flat-square)](https://github.com/steipete/eightctl/releases/latest)
+[![Go](https://img.shields.io/github/go-mod/go-version/steipete/eightctl?style=flat-square)](https://go.dev/)
+[![License](https://img.shields.io/github/license/steipete/eightctl?style=flat-square)](LICENSE)
+[![Homebrew](https://img.shields.io/badge/Homebrew-steipete%2Ftap-orange?style=flat-square)](https://github.com/steipete/homebrew-tap)
 
-> Eight Sleep does **not** publish a stable public API. `eightctl` talks to the same undocumented cloud endpoints the mobile apps use. Default OAuth client creds are baked in (from Android APK 7.39.17), so typically you only supply email + password.
-> **Status:** WIP. The code paths are implemented, but live verification is currently blocked by Eight Sleep API rate limiting on the test account.
+`eightctl` is an unofficial CLI for controlling Eight Sleep Pods and exporting sleep data. It is for people who want pod controls and metrics from a terminal or script.
 
-## Quickstart
-```bash
-# build + install
-GO111MODULE=on go install github.com/steipete/eightctl/cmd/eightctl@latest
+> [!IMPORTANT]
+> Eight Sleep does not publish a stable public API. `eightctl` uses the company's cloud endpoints, so provider changes and rate limits can interrupt commands; it does not provide local or Bluetooth control.
 
-# create config (optional; flags/env also work)
-mkdir -p ~/.config/eightctl
-cat > ~/.config/eightctl/config.yaml <<'CFG'
-email: "you@example.com"
-password: "your-password"
-# user_id: "optional"               # auto-resolved via /users/me
-# timezone: "America/New_York"      # defaults to local
-# client_id / client_secret optional # defaults to app creds
-CFG
-chmod 600 ~/.config/eightctl/config.yaml
+## Install
 
-# check pod state
-EIGHTCTL_EMAIL=you@example.com EIGHTCTL_PASSWORD=your-password eightctl status
+With [Homebrew](https://brew.sh/):
 
-# set temperature level (-100..100); without --side, applies to all discovered sides/users
-eightctl temp 20
-
-# target a specific side when the household is split
-eightctl temp -40 --side right
-eightctl on --side left
-
-# run daemon with your YAML schedule (see docs/example-schedule.yaml)
-eightctl daemon --dry-run
+```sh
+brew install steipete/tap/eightctl
 ```
 
-## Command Surface
-- **Power & temp:** `on`, `off`, `temp <level>`, `status`
-- **Away mode:** `away on|off`
-- **Schedules & daemon:** `schedule list` (Autopilot/smart schedule), `daemon`
-- **Alarms:** `alarm list|create|update|delete|snooze|dismiss|dismiss-all|vibration-test`
-- **Temperature modes:** `tempmode nap on|off|extend|status`, `tempmode hotflash on|off|status`, `tempmode events`
-- **Audio:** `audio tracks|categories|state|play|pause|seek|volume|pair|next`, `audio favorites list|add|remove`
-- **Base:** `base info|angle|presets|preset-run|test`
-- **Device:** `device info|peripherals|owner|warranty|online|priming-tasks|priming-schedule`
-- **Metrics & insights:** `sleep day|range`, `presence [--from --to]`, `metrics trends|intervals|insights`
-- **Autopilot:** `autopilot details|history|recap`, `autopilot level-suggestions`, `autopilot snore-mitigation`
-- **Travel:** `travel trips|create-trip|delete-trip|plans|create-plan|update-plan|tasks|airport-search|flight-status`
-- **Household:** `household summary|schedule|current-set|invitations|devices|users|guests`
-- **Misc:** `tracks`, `feats`, `whoami`, `logout`, `version`
+Prebuilt archives for macOS, Linux, and Windows on amd64 and arm64 are available from the [latest GitHub release](https://github.com/steipete/eightctl/releases/latest).
 
-Use `--output table|json|csv` and `--fields field1,field2` to shape output. `--verbose` enables debug logs; `--quiet` hides the config banner.
+Check the installed version with `eightctl --version` or `eightctl version`.
 
-## Household Targeting
-- `status` shows discovered household targets by default when available, including `left` / `right` or inferred `solo`.
-- `on`, `off`, and `temp` apply to all discovered household targets by default.
-- Use `--side left|right|solo` to target one household side.
-- Use `--target-user-id <id>` when you want to address a specific discovered user directly.
-- For split households, `eightctl status --output json` is the quickest way to inspect available sides and user IDs.
+To build and install from source, use Go 1.26.7 or newer:
+
+```sh
+go install github.com/steipete/eightctl/cmd/eightctl@latest
+```
+
+## Quick start
+
+Set your Eight Sleep account credentials, then inspect and control the pod:
+
+```sh
+export EIGHTCTL_EMAIL="you@example.com"
+export EIGHTCTL_PASSWORD="your-password"
+
+eightctl status
+eightctl temp 20
+eightctl temp -40 --side right
+```
+
+`status`, `on`, `off`, and `temp` act on all discovered household sides unless you select one with `--side left|right|solo` or `--target-user-id <id>`.
+
+## Commands
+
+| Area | Commands |
+| --- | --- |
+| Pod control | `status`, `on`, `off`, `temp`, `away` |
+| Sleep data | `sleep`, `presence`, `metrics` |
+| Pod features | `alarm`, `audio`, `base`, `device`, `schedule`, `tempmode` |
+| Account and travel | `household`, `autopilot`, `travel` |
+
+Run `eightctl <command> --help` for flags and subcommands. The [command specification](docs/spec.md#cli-surface-implemented) covers the complete surface and current provider constraints.
+
+Use `eightctl away on --both` before a trip and `eightctl away off --both` to resume all household members, including when everyone is already away. If household user IDs cannot be resolved, the command reports an error.
+
+`eightctl away status` reads the cloud-reported state for all discovered household sides; use `--side` or `--target-user-id` to select one person. In contrast, `away on|off` without targeting flags changes only the authenticated user's side. The cloud is eventually consistent: readback may show the previous state after a write and does not immediately confirm that a change took effect.
 
 ## Configuration
-Priority: flags > env vars (`EIGHTCTL_*`) > config file.
 
-Key fields: `email`, `password`, optional `user_id`, `client_id`, `client_secret`, `timezone`, `output`, `fields`, `verbose`. The client auto-resolves `user_id` and `device_id` after authentication. Config file permissions are checked (warn if >0600).
+Flags take precedence over `EIGHTCTL_*` environment variables, which take precedence over `~/.config/eightctl/config.yaml`:
 
-## Tooling
-- Go: module targets Go 1.26.4 and lets `actions/setup-go` read `go.mod`.
-- Make: `make fmt` (tracked `go tool` gofumpt), `make lint` (golangci-lint), `make test`, `make coverage`.
-- Coverage: CI enforces >=85% on core packages (`internal/client`, `config`, `daemon`, `output`, `tokencache`); command wiring still runs through `go test ./...`.
-- CI: `.github/workflows/ci.yml` runs format, lint, tests, the coverage gate, and a release-artifact version smoke test.
-- Releases: `v*` tags publish GoReleaser archives whose embedded version and GitHub Release notes come from the tag and matching changelog section.
-- pnpm scripts (optional): `pnpm eightctl|start|build|lint|format|test|coverage` (see package.json).
+```yaml
+email: "you@example.com"
+password: "your-password"
+timezone: "America/New_York"
+output: "table"
+schedule:
+  - time: "22:30"
+    action: "temp"
+    temperature: "-20"
+```
 
-## Known API realities
-- The API is undocumented and rate-limited; repeated logins can return 429. The client now mimics Android app headers and reuses tokens to reduce throttling, but cooldowns may still apply.
-- Authentication uses the OAuth2 password grant against `auth-api.8slp.net/v1/tokens` with `application/x-www-form-urlencoded` bodies. The legacy `/login` JSON endpoint is no longer called.
-- HTTPS only; no local/Bluetooth control exposed here.
-- Eight Sleep retired the temperature-schedules/routines CRUD API; `schedule list` now surfaces the Autopilot (smart) schedule from the `smart` subfield of `app-api.8slp.net/v1/users/:id/temperature`. `metrics summary` / `metrics aggregate` were removed because the underlying endpoints no longer exist — use `metrics trends` instead.
-- The `tz` query param rejects the literal strings `local` / `Local`. The client resolves `--timezone local` (the default) to a real IANA zone, falling back to `UTC` with a warning when the system has no zoneinfo.
+Keep the file readable only by your account with `chmod 600 ~/.config/eightctl/config.yaml`. The optional `user_id` is resolved after authentication, and the public app OAuth client is used unless `client_id` and `client_secret` are set.
 
-## Prior Work / References
-- Go CLI `clim8`: https://github.com/blacktop/clim8
-- MCP server (Node/TS): https://github.com/elizabethtrykin/8sleep-mcp
-- Python library `pyEight`: https://github.com/mezz64/pyEight
-- Home Assistant integrations: https://github.com/lukas-clarke/eight_sleep and https://github.com/grantnedwards/eight-sleep
-- Homebridge plugin: https://github.com/nfarina/homebridge-eightsleep
-- Background on the unofficial API and feature removals: https://www.reddit.com/r/EightSleep/comments/15ybfrv/eight_sleep_removed_smart_home_capabilities/
+Schedule times and dates use the configured `timezone`, even when it differs from the host timezone.
+
+Preview scheduled actions without changing the pod, then remove `--dry-run` when the schedule is ready:
+
+```sh
+eightctl daemon --config ~/.config/eightctl/config.yaml --dry-run
+```
+
+## Structured output
+
+Commands that return rows support table, JSON, and CSV output. Use `--fields` to select columns:
+
+```sh
+eightctl status --output json
+eightctl sleep day --date 2026-08-01 --output csv
+eightctl status --fields side,name,mode,level
+```
+
+## Authentication and API behavior
+
+`eightctl` authenticates against Eight Sleep's OAuth service and caches tokens in the operating system keyring, with a file-backed fallback. Reusing cached tokens reduces login traffic, but the provider can still return rate-limit errors.
+
+`eightctl logout` removes the selected account's local cached token from reachable stores. It returns an error if a reachable store refuses deletion, even when another store clears successfully. An unavailable store remains tolerated if another opens. Logout does not revoke tokens at Eight Sleep; an already-issued token remains valid at the service until it expires.
+
+The API is undocumented and cloud-only. The [project specification](docs/spec.md#reality-of-the-api) records the current contract, while [CHANGELOG.md](CHANGELOG.md) tracks endpoint removals and compatibility changes.
+
+## Development
+
+The preferred build toolchain is Go 1.26.8, selected by `go.mod`; Go 1.26.7 remains the supported minimum and is tested in CI. The optional package scripts use pnpm 12.3.4 with Node.js 24 or newer.
+
+```sh
+make build
+go test ./...
+make coverage
+make lint
+```
+
+`make build` writes `./eightctl`. To install a local development build, run
+`make install`; it creates `~/.local/bin` if needed. Add that directory to your
+`PATH`, or select another binary directory with
+`make install PREFIX=/usr/local/bin`.
+
+On macOS, installation ad-hoc signs and verifies the installed executable to
+avoid stale-signature launch failures after replacement. A rebuilt executable
+can still trigger a Keychain authorization prompt when accessing cached tokens;
+this install helper does not make authenticated commands prompt-free on
+unattended hosts. Published releases use the separate signed release pipeline.
+
+CI runs formatting, lint, tests, the core-package coverage gate, and a release-artifact smoke test.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
