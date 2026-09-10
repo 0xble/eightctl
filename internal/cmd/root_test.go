@@ -24,10 +24,10 @@ func useTempKeyring(t *testing.T) func() {
 		})
 	}
 	restoreKeyring := tokencache.SetOpenKeyringForTest(opener)
-	restoreFallback := tokencache.SetFallbackPathForTest(filepath.Join(tmp, "token-cache.json"))
+	restoreFileKeyring := tokencache.SetOpenFileKeyringForTest(opener)
 	restore := func() {
 		restoreKeyring()
-		restoreFallback()
+		restoreFileKeyring()
 	}
 	t.Cleanup(restore)
 	return restore

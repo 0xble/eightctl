@@ -1,13 +1,10 @@
-name: release
+name: Release (legacy manual)
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to (re)release (e.g. v0.1.0)"
+        description: "Legacy manual fallback for an existing tag; use Release (unified) for normal releases"
         required: true
         type: string
 
@@ -24,14 +21,14 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v6.5.0
+        uses: actions/setup-go@v7.0.0
         with:
           go-version-file: go.mod
           cache: true
 
       - name: Prepare release inputs
         env:
-          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          RELEASE_TAG: ${{ inputs.tag }}
         run: |
           if ! [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
             echo "invalid release tag: $RELEASE_TAG" >&2
@@ -48,14 +45,13 @@ jobs:
           fi
 
       - name: Checkout release tag
-        if: ${{ github.event_name == 'workflow_dispatch' }}
         run: git checkout --detach "refs/tags/${RELEASE_TAG}"
 
       - name: GoReleaser
         uses: goreleaser/goreleaser-action@v7.2.3
         with:
           distribution: goreleaser
-          version: v2.16.0
+          version: v2.18.1
           args: release --clean --config /tmp/.goreleaser.yaml --release-notes /tmp/release-notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

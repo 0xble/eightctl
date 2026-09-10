@@ -1,0 +1,56 @@
+name: Release (unified)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: SemVer to release
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      already-published: ${{ steps.release-state.outputs.already-published }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check release metadata
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: ./scripts/check-release-metadata "$RELEASE_VERSION"
+
+      - name: Verify existing published release
+        id: release-state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: ./scripts/release-preflight "$RELEASE_VERSION"
+
+  release:
+    needs: preflight
+    if: needs.preflight.outputs.already-published != 'true'
+    permissions:
+      actions: read
+      checks: read
+      contents: write
+      pull-requests: write
+      statuses: read
+    uses: openclaw/release-workflows/.github/workflows/release-go-cli.yml@ea135a47fa5c597250c2b45a681969f1e556cdea
+    with:
+      version: ${{ inputs.version }}
+      repository-type: personal
+    secrets:
+      MACOS_SIGNING_P12: ${{ secrets.MACOS_SIGN_P12 }}
+      MACOS_SIGNING_P12_PASSWORD: ${{ secrets.MACOS_SIGN_P12_PASSWORD }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_PRIVATE_KEY_P8: ${{ secrets.ASC_PRIVATE_KEY }}
