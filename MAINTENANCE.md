@@ -19,10 +19,11 @@ Accepted upstream baseline: `db84b936e0ba107209864508b434ff0b2761b553` (fetched
 
 ## Active patches
 
+All entries are active; source differences were confirmed against upstream's
+then-current default branch on 2026-09-09.
+
 ### EIGHTCTL-001: `fix: FileBackend-only keyring + bounded retry on 401/429`
 
-- **Status:** Active; source difference confirmed against upstream's then-current
-  default branch on 2026-09-09.
 - **Provenance:** `159f3223ff15437c3dc2dd0ea2f3657819f9ad60`; follow-up test
   `8fa268aff47c1279426f93bd0d71f9349f3cceff`.
 - **Surfaces/invariant:** `internal/tokencache/{tokencache.go,tokencache_test.go}`
@@ -37,8 +38,6 @@ Accepted upstream baseline: `db84b936e0ba107209864508b434ff0b2761b553` (fetched
 
 ### EIGHTCTL-002: `fix: restore upstream APIs dropped during rebase conflict resolution`
 
-- **Status:** Active; source difference confirmed against upstream's then-current
-  default branch on 2026-09-09.
 - **Provenance:** `3fbf3eaee59dbf78faf46213942b6b46d624a6d4`; **surfaces/invariant:**
   `internal/client/{eightsleep.go,schedules.go,base.go}` and `internal/cmd/` retain
   restored API paths and payload compatibility.
@@ -49,8 +48,6 @@ Accepted upstream baseline: `db84b936e0ba107209864508b434ff0b2761b553` (fetched
 
 ### EIGHTCTL-003: `fix(fork): retain fork install and version identity`
 
-- **Status:** Active; source difference confirmed against upstream's then-current
-  default branch on 2026-09-09.
 - **Provenance:** `d3a42879f4032eb138b44d04595354eed5209f19`,
   `746ac4766c2b8f661a8b116e0f9b62684cc34c6f`, and
   `aa942141be851a78c13dbb4f8ee87a5c48797f2d`.
@@ -76,14 +73,6 @@ commits; otherwise report `Blocked` with stage, refs, and evidence. Publish to
 `origin` or report that concrete blocker.
 
 ## Verify
-
-```text
-UPSTREAM_DEFAULT="$(git ls-remote --symref upstream HEAD | awk '/^ref:/ {sub("refs/heads/", "", $2); print $2; exit}')"
-test -n "$UPSTREAM_DEFAULT"
-git fetch --prune upstream "refs/heads/$UPSTREAM_DEFAULT:refs/remotes/upstream/$UPSTREAM_DEFAULT"
-git diff --check
-git rev-list --left-right --count "upstream/$UPSTREAM_DEFAULT...main"
-```
 
 Require a fresh final fetch with zero upstream-only commits and, after authorized
 publication, local `main` SHA equal to `origin/main`. Installed/runtime SHA proof
