@@ -7,21 +7,36 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
 	"github.com/steipete/eightctl/internal/daemon"
 )
 
 func TestParseDays(t *testing.T) {
-	got, err := parseDays("1, 2,,6")
-	if err != nil {
-		t.Fatalf("parseDays: %v", err)
-	}
-	if !reflect.DeepEqual(got, []int{1, 2, 6}) {
-		t.Fatalf("days = %#v", got)
-	}
-	if _, err := parseDays("x"); err == nil {
-		t.Fatalf("expected invalid day error")
+	for _, command := range []*cobra.Command{alarmCreateCmd, alarmUpdateCmd} {
+		t.Run(command.Name(), func(t *testing.T) {
+			flag := command.Flags().Lookup("days")
+			previous, changed := flag.Value.String(), flag.Changed
+			t.Cleanup(func() {
+				_ = flag.Value.(pflag.SliceValue).Replace(nil)
+				if previous != "[]" {
+					_ = flag.Value.Set(strings.Trim(previous, "[]"))
+				}
+				flag.Changed = changed
+			})
+			if err := command.ParseFlags([]string{"--days", "1,2,6"}); err != nil {
+				t.Fatal(err)
+			}
+			got, err := command.Flags().GetIntSlice("days")
+			if err != nil || !reflect.DeepEqual(got, []int{1, 2, 6}) {
+				t.Fatalf("days = %#v, error = %v", got, err)
+			}
+			if err := command.ParseFlags([]string{"--days", "x"}); err == nil {
+				t.Fatal("expected invalid day error")
+			}
+		})
 	}
 }
 
@@ -92,7 +107,9 @@ func TestDaemonConfigFlagUsesLoadedFile(t *testing.T) {
 		t.Fatalf("bind --config: %v", err)
 	}
 
-	initConfig()
+	if err := initConfig(); err != nil {
+		t.Fatal(err)
+	}
 	if got := viper.ConfigFileUsed(); got != path {
 		t.Fatalf("ConfigFileUsed = %q, want %q", got, path)
 	}
@@ -124,8 +141,8 @@ func TestMapKeysAndCurrentDate(t *testing.T) {
 	if got := mapKeys(map[string]any{"b": 2, "a": 1}); !reflect.DeepEqual(got, []string{"a", "b"}) {
 		t.Fatalf("mapKeys = %#v", got)
 	}
-	if got := currentDate(); len(got) != len("2006-01-02") {
-		t.Fatalf("currentDate = %q", got)
+	if got, err := currentDate("UTC"); err != nil || len(got) != len("2006-01-02") {
+		t.Fatalf("currentDate = %q, error = %v", got, err)
 	}
 }
 

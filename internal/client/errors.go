@@ -9,7 +9,8 @@ func IsEndpointUnavailable(err error) bool {
 		return false
 	}
 	s := strings.ToLower(err.Error())
-	return strings.Contains(s, "cannot get") ||
+	return strings.Contains(s, "status 404") ||
+		strings.Contains(s, "cannot get") ||
 		strings.Contains(s, "cannot post") ||
 		strings.Contains(s, "cannot put") ||
 		strings.Contains(s, "cannot patch") ||

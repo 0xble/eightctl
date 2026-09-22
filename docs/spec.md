@@ -1,4 +1,4 @@
-# eightctl Specification (Dec 2025)
+# eightctl Specification
 
 ## Purpose
 Eight Sleep Pod power/control + data-export CLI, written in Go. Targets macOS/Linux users who want a dependable terminal tool (incl. daemon) for pod automations, metrics export, and feature toggles that the mobile app exposes but the vendor does not document.
@@ -9,7 +9,7 @@ Eight Sleep Pod power/control + data-export CLI, written in Go. Targets macOS/Li
   - `client_id`: `0894c7f33bb94800a03f1f4df13a4f38`
   - `client_secret`: `f0954a3ed5763ba3d06834c73731a32f15f168f47d4f164751275def86db0c76`
 - Auth flow: OAuth password grant at `https://auth-api.8slp.net/v1/tokens` (form-urlencoded).
-- Throttling: 429s observed; client retries with small delay and re-auths on 401.
+- Throttling: 429s use bounded, cancellable backoff; 401s reauthenticate without reusing the rejected cached token. Responses are closed before retrying.
 
 ## Configuration & Auth
 - Config file: `~/.config/eightctl/config.yaml`; env prefix `EIGHTCTL_`; flags override env override file.
@@ -26,7 +26,7 @@ Away mode:
 
 Schedules & daemon:
 - `schedule list` (Autopilot smart schedule)
-- `daemon` (YAML-based scheduler with PID guard, dry-run, timezone override, optional state sync)
+- `daemon` (YAML-based scheduler with PID guard, dry-run, timezone override)
 
 Alarms:
 - `alarm list|create|update|delete`
@@ -83,11 +83,11 @@ Audio/temperature data helpers:
 
 ## Daemon Behavior
 - Reads YAML schedule (time, action on|off|temp, temperature with unit), minute tick, executes once per day, PID guard, SIGINT/SIGTERM graceful stop.
-- Optional state sync compares expected schedule state vs device and reconciles.
+- `--sync-state` is reserved and currently has no effect; the daemon does not reconcile device state.
 - Start with `eightctl daemon --config ~/.config/eightctl/config.yaml --dry-run` to validate scheduled actions without changing the pod.
 
 ## Testing & Quality Gates
-- `go test ./...` (fast compile checks) — run before handoff.
+- `go test ./...` runs unit and local HTTP integration tests.
 - `make coverage` enforces >=85% coverage on core packages (`internal/client`, `config`, `daemon`, `output`, `tokencache`).
 - Formatting via tracked `go tool mvdan.cc/gofumpt`; linting via golangci-lint v2.
 - Live checks: `eightctl status`, `metrics trends`, `tempmode nap status` with test creds to validate auth + userId resolution.

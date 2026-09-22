@@ -55,6 +55,72 @@ func TestLoadDefaultsWhenConfigMissing(t *testing.T) {
 	}
 }
 
+func TestLoadConfigSelectedByEnvironment(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+	path := filepath.Join(dir, "selected.yaml")
+	if err := os.WriteFile(path, []byte("user_id: environment-file\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("EIGHTCTL_CONFIG", path)
+	v := viper.New()
+	got, err := Load(v, "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.UserID != "environment-file" || v.ConfigFileUsed() != path {
+		t.Fatalf("environment-selected file ignored: user_id=%q file=%q", got.UserID, v.ConfigFileUsed())
+	}
+
+	explicit := filepath.Join(dir, "explicit.yaml")
+	if err := os.WriteFile(explicit, []byte("user_id: explicit-file\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err = Load(viper.New(), explicit, true)
+	if err != nil || got.UserID != "explicit-file" {
+		t.Fatalf("explicit config must override environment: user_id=%q error=%v", got.UserID, err)
+	}
+}
+
+func TestLoadReportsEnvironmentSelectedFileErrors(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+	for _, filename := range []string{"missing.yaml", "malformed.yaml"} {
+		t.Run(filename, func(t *testing.T) {
+			path := filepath.Join(dir, filename)
+			if filename == "malformed.yaml" {
+				if err := os.WriteFile(path, []byte("schedule: ["), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			t.Setenv("EIGHTCTL_CONFIG", path)
+			if _, err := Load(viper.New(), "", true); err == nil {
+				t.Fatal("invalid environment-selected file was ignored")
+			}
+		})
+	}
+}
+
+func TestLoadReportsFileErrors(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	if _, err := Load(viper.New(), filepath.Join(t.TempDir(), "missing.yaml"), true); err == nil {
+		t.Error("explicit missing config was ignored")
+	}
+	dir := filepath.Join(os.Getenv("HOME"), ".config", "eightctl")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(path, []byte("schedule: ["), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, selected := range []string{path, ""} {
+		if _, err := Load(viper.New(), selected, true); err == nil {
+			t.Errorf("malformed config %q was ignored", selected)
+		}
+	}
+}
+
 func TestWarnInsecurePerms(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(path, []byte("email: x"), 0o644); err != nil {

@@ -107,8 +107,8 @@ func TestNamespacingByIdentity(t *testing.T) {
 	if got, _ := Load(idC); got.Token != "token-c" {
 		t.Errorf("Load C token = %q, want token-c", got.Token)
 	}
-	if got, _ := Load(idD); got.Token != "token-d" {
-		t.Errorf("Load D token = %q, want token-d", got.Token)
+	if _, err := Load(idD); !errors.Is(err, ErrAmbiguousAccount) {
+		t.Errorf("anonymous cache entry must not bypass account selection: %v", err)
 	}
 }
 
@@ -140,6 +140,14 @@ func TestCacheKeyNormalization(t *testing.T) {
 	k2 := cacheKey(Identity{BaseURL: "https://api.example.com", ClientID: "id", Email: "user@example.com"})
 	if k1 != k2 {
 		t.Fatalf("cacheKey should normalize; got %q vs %q", k1, k2)
+	}
+}
+
+func TestCacheKeyPreservesSessionsAcrossProductionAPIHostMigration(t *testing.T) {
+	legacy := cacheKey(Identity{BaseURL: "https://app-api.8slp.net/v1", ClientID: "id", Email: "user@example.com"})
+	current := cacheKey(Identity{BaseURL: "https://client-api.8slp.net/v1", ClientID: "id", Email: "user@example.com"})
+	if legacy != current {
+		t.Fatalf("production API host migration changed token identity; got %q vs %q", legacy, current)
 	}
 }
 
@@ -178,8 +186,8 @@ func TestLoadWithoutEmailMultipleMatchesFails(t *testing.T) {
 	if err := Save(Identity{BaseURL: common.BaseURL, ClientID: common.ClientID, Email: "b@example.com"}, "tb", time.Now().Add(time.Hour), "ub"); err != nil {
 		t.Fatalf("save b: %v", err)
 	}
-	if _, err := Load(common); err != keyring.ErrKeyNotFound {
-		t.Fatalf("expected not found when multiple matches, got %v", err)
+	if _, err := Load(common); !errors.Is(err, ErrAmbiguousAccount) {
+		t.Fatalf("expected ambiguous account error when multiple matches, got %v", err)
 	}
 }
 

@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/steipete/eightctl/internal/client"
-	"github.com/steipete/eightctl/internal/output"
 )
 
 var audioCmd = &cobra.Command{Use: "audio", Short: "Audio tracks and player"}
@@ -26,12 +25,7 @@ var audioTracksCmd = &cobra.Command{Use: "tracks", RunE: func(cmd *cobra.Command
 	for _, t := range tracks {
 		rows = append(rows, map[string]any{"id": t.ID, "title": t.Title, "type": t.Type})
 	}
-	rows = output.FilterFields(rows, viper.GetStringSlice("fields"))
-	headers := viper.GetStringSlice("fields")
-	if len(headers) == 0 {
-		headers = []string{"id", "title", "type"}
-	}
-	return output.Print(output.Format(viper.GetString("output")), headers, rows)
+	return printRows([]string{"id", "title", "type"}, rows)
 }}
 
 var audioCategoriesCmd = &cobra.Command{Use: "categories", RunE: func(cmd *cobra.Command, args []string) error {
@@ -44,7 +38,7 @@ var audioCategoriesCmd = &cobra.Command{Use: "categories", RunE: func(cmd *cobra
 		return err
 	}
 	rows := []map[string]any{{"data": res}}
-	return output.Print(output.Format(viper.GetString("output")), []string{"data"}, rows)
+	return printRows([]string{"data"}, rows)
 }}
 
 var audioStateCmd = &cobra.Command{Use: "state", RunE: func(cmd *cobra.Command, args []string) error {
@@ -57,7 +51,7 @@ var audioStateCmd = &cobra.Command{Use: "state", RunE: func(cmd *cobra.Command, 
 		return err
 	}
 	rows := []map[string]any{{"state": res}}
-	return output.Print(output.Format(viper.GetString("output")), []string{"state"}, rows)
+	return printRows([]string{"state"}, rows)
 }}
 
 var audioPlayCmd = &cobra.Command{Use: "play", RunE: func(cmd *cobra.Command, args []string) error {
@@ -113,7 +107,7 @@ var audioNextCmd = &cobra.Command{Use: "next", RunE: func(cmd *cobra.Command, ar
 		return err
 	}
 	rows := []map[string]any{{"next": res}}
-	return output.Print(output.Format(viper.GetString("output")), []string{"next"}, rows)
+	return printRows([]string{"next"}, rows)
 }}
 
 var audioFavoritesCmd = &cobra.Command{Use: "favorites", Short: "Favorite tracks"}
@@ -127,7 +121,7 @@ var audioFavListCmd = &cobra.Command{Use: "list", RunE: func(cmd *cobra.Command,
 	if err != nil {
 		return err
 	}
-	return output.Print(output.Format(viper.GetString("output")), []string{"favorites"}, []map[string]any{{"favorites": res}})
+	return printRows([]string{"favorites"}, []map[string]any{{"favorites": res}})
 }}
 
 var audioFavAddCmd = &cobra.Command{Use: "add", RunE: func(cmd *cobra.Command, args []string) error {
@@ -156,15 +150,10 @@ var audioFavRemoveCmd = &cobra.Command{Use: "remove", RunE: func(cmd *cobra.Comm
 
 func init() {
 	audioPlayCmd.Flags().String("track", "", "track ID to play")
-	viper.BindPFlag("track", audioPlayCmd.Flags().Lookup("track"))
 	audioSeekCmd.Flags().Int("position", 0, "position milliseconds")
-	viper.BindPFlag("position", audioSeekCmd.Flags().Lookup("position"))
 	audioVolumeCmd.Flags().Int("level", 50, "volume level 0-100")
-	viper.BindPFlag("level", audioVolumeCmd.Flags().Lookup("level"))
 	audioFavAddCmd.Flags().String("track", "", "track id")
-	viper.BindPFlag("track", audioFavAddCmd.Flags().Lookup("track"))
 	audioFavRemoveCmd.Flags().String("track", "", "track id")
-	viper.BindPFlag("track", audioFavRemoveCmd.Flags().Lookup("track"))
 
 	audioFavoritesCmd.AddCommand(audioFavListCmd, audioFavAddCmd, audioFavRemoveCmd)
 	audioCmd.AddCommand(audioTracksCmd, audioCategoriesCmd, audioStateCmd, audioPlayCmd, audioPauseCmd, audioSeekCmd, audioVolumeCmd, audioPairCmd, audioNextCmd, audioFavoritesCmd)

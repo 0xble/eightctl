@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
 )
 
 type HouseholdActions struct{ c *Client }
@@ -108,32 +107,4 @@ func (h *HouseholdActions) Guests(ctx context.Context) (any, error) {
 
 	// Current API no longer exposes guests for some accounts; keep command usable.
 	return map[string]any{"guests": []any{}}, nil
-}
-
-func mapToValues(values map[string]string) url.Values {
-	out := make(url.Values, len(values))
-	for key, value := range values {
-		out.Set(key, value)
-	}
-	return out
-}
-
-func orderedUniqueStrings(values ...string) []string {
-	out := []string{}
-	for _, value := range values {
-		out = appendUniqueString(out, value)
-	}
-	return out
-}
-
-func appendUniqueString(existing []string, value string) []string {
-	if value == "" {
-		return existing
-	}
-	for _, current := range existing {
-		if current == value {
-			return existing
-		}
-	}
-	return append(existing, value)
 }

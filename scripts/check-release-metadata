@@ -8,21 +8,28 @@ fi
 requested_version=${1#v}
 
 package_version=$(awk -F '"' '$2 == "version" { print $4; exit }' package.json)
-changelog_version=$(awk '/^## [0-9]+\.[0-9]+\.[0-9]+( |$)/ { print $2; exit }' CHANGELOG.md)
+changelog_version=$(awk '/^## [0-9]+\.[0-9]+\.[0-9]+(-0xble\.[0-9A-Za-z.-]+)?( |$)/ { print $2; exit }' CHANGELOG.md)
+source_version=$(awk -F '"' '/var Version = / { print $2; exit }' internal/cmd/version.go)
+goreleaser_version=$(awk '/github.com\/steipete\/eightctl\/internal\/cmd.Version=/ { sub(/^.*Version=/, ""); print; exit }' .goreleaser.yaml)
 
-if [ -z "$package_version" ] || [ -z "$changelog_version" ]; then
-	echo "could not resolve release metadata from package.json and CHANGELOG.md" >&2
+if [ -z "$package_version" ] || [ -z "$changelog_version" ] || [ -z "$source_version" ] || [ -z "$goreleaser_version" ]; then
+	echo "could not resolve release metadata from package.json, CHANGELOG.md, internal/cmd/version.go, and .goreleaser.yaml" >&2
 	exit 1
 fi
 
-package_release_version=$(printf '%s\n' "$package_version" | sed 's/-0xble\.[0-9A-Za-z.-]*$//')
-if [ "$package_release_version" != "$changelog_version" ]; then
-  echo "package.json release base $package_release_version does not match latest finalized changelog version $changelog_version" >&2
-  exit 1
-fi
-if [ -n "$requested_version" ] && [ "$requested_version" != "$package_release_version" ]; then
-  echo "requested release version $requested_version does not match repository release base $package_release_version" >&2
+if [ "$source_version" != "$package_version" ] || [ "$goreleaser_version" != "$package_version" ]; then
+  echo "fork version mismatch: package=$package_version source=$source_version goreleaser=$goreleaser_version" >&2
   exit 1
 fi
 
-echo "release metadata matches v$package_release_version"
+package_release_version=$(printf '%s\n' "$package_version" | sed 's/-0xble\.[0-9A-Za-z.-]*$//')
+if [ "$package_version" != "$changelog_version" ]; then
+  echo "package.json version $package_version does not match latest finalized changelog version $changelog_version" >&2
+  exit 1
+fi
+if [ -n "$requested_version" ] && [ "$requested_version" != "$package_version" ]; then
+  echo "requested release version $requested_version does not match fork package version $package_version" >&2
+  exit 1
+fi
+
+echo "release metadata matches v$package_version (upstream base v$package_release_version)"

@@ -2,13 +2,13 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	"github.com/steipete/eightctl/internal/client"
-	"github.com/steipete/eightctl/internal/output"
 )
 
 var statusCmd = &cobra.Command{
@@ -30,8 +30,8 @@ var statusCmd = &cobra.Command{
 		if allSides && target != nil {
 			return fmt.Errorf("use --all-sides by itself, not with --side or --target-user-id")
 		}
-		rows := []map[string]any{}
-		headers := []string{"mode", "level"}
+		var rows []map[string]any
+		var headers []string
 		if allSides {
 			targets, err := cl.HouseholdUserTargets(context.Background())
 			if err != nil {
@@ -48,12 +48,7 @@ var statusCmd = &cobra.Command{
 				return err
 			}
 		}
-		fields := viper.GetStringSlice("fields")
-		rows = output.FilterFields(rows, fields)
-		if len(fields) > 0 {
-			headers = fields
-		}
-		return output.Print(output.Format(viper.GetString("output")), headers, rows)
+		return printRows(headers, rows)
 	},
 }
 
@@ -78,6 +73,9 @@ func defaultStatusRows(ctx context.Context, cl *client.Client, target *client.Ho
 	}
 
 	targets, err := cl.HouseholdUserTargets(ctx)
+	if errors.Is(err, client.ErrInvalidHouseholdUser) {
+		return nil, nil, err
+	}
 	if err == nil && len(targets) > 0 {
 		rows, err := householdStatusRows(ctx, cl, targets)
 		if err != nil {

@@ -1,10 +1,11 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -19,8 +20,10 @@ var daemonCmd = &cobra.Command{
 	Use:   "daemon",
 	Short: "Run schedule daemon from config file",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := requireAuthFields(); err != nil {
-			return err
+		if !viper.GetBool("dry-run") {
+			if err := requireAuthFields(); err != nil {
+				return err
+			}
 		}
 		cfgData, err := readConfigSchedule()
 		if err != nil {
@@ -46,8 +49,8 @@ var daemonCmd = &cobra.Command{
 			Sync:     viper.GetBool("sync-state"),
 			PIDFile:  defaultPIDFile(viper.GetString("pid-file")),
 		}
-		ctx := context.Background()
-		fmt.Printf("daemon started with %d items\n", len(items))
+		ctx, stop := signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
+		defer stop()
 		return r.Run(ctx)
 	},
 }
@@ -56,9 +59,6 @@ func init() {
 	daemonCmd.Flags().Bool("dry-run", false, "log actions without executing")
 	daemonCmd.Flags().Bool("sync-state", false, "(reserved) sync device state")
 	daemonCmd.Flags().String("pid-file", "", "pid file path (default ~/.config/eightctl/daemon.pid)")
-	viper.BindPFlag("dry-run", daemonCmd.Flags().Lookup("dry-run"))
-	viper.BindPFlag("sync-state", daemonCmd.Flags().Lookup("sync-state"))
-	viper.BindPFlag("pid-file", daemonCmd.Flags().Lookup("pid-file"))
 }
 
 func readConfigSchedule() ([]byte, error) {
