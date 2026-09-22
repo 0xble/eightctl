@@ -20,6 +20,8 @@ const (
 	serviceName        = "eightctl"
 	tokenKey           = "oauth-token"
 	storageKeyV2Prefix = tokenKey + "_v2_"
+	legacyAPIBaseURL   = "https://app-api.8slp.net/v1"
+	currentAPIBaseURL  = "https://client-api.8slp.net/v1"
 )
 
 type CachedToken struct {
@@ -41,6 +43,8 @@ var (
 	openKeyring           = defaultOpenKeyring
 	openFileKeyring       = defaultOpenFileKeyring
 	fallbackCachePathFunc = defaultFallbackCachePath
+
+	ErrAmbiguousAccount = errors.New("multiple cached accounts; specify --email")
 )
 
 // SetOpenKeyringForTest swaps the keyring opener; it returns a restore func.
@@ -74,10 +78,14 @@ func defaultOpenKeyring() (keyring.Keyring, error) {
 }
 
 func defaultOpenFileKeyring() (keyring.Keyring, error) {
+	return openBackends(keyring.FileBackend)
+}
+
+func openBackends(backends ...keyring.BackendType) (keyring.Keyring, error) {
 	home, _ := os.UserHomeDir()
 	return keyring.Open(keyring.Config{
 		ServiceName:      serviceName,
-		AllowedBackends:  []keyring.BackendType{keyring.FileBackend},
+		AllowedBackends:  backends,
 		FileDir:          filepath.Join(home, ".config", "eightctl", "keyring"),
 		FilePasswordFunc: filePassword,
 	})
@@ -131,29 +139,28 @@ func trySetWith(opener func() (keyring.Keyring, error), item keyring.Item) error
 // multiple household userIDs. The cached UserID is informational metadata for
 // callers that want to recover "which userID was primary at auth time."
 func Load(id Identity) (*CachedToken, error) {
-	cached, err := loadFrom(openKeyring, id)
-	if err == nil {
-		return cached, nil
-	}
-	if err != keyring.ErrKeyNotFound {
-		log.Debug("primary keyring load failed", "error", err)
-	}
-	fallback, fallbackErr := loadFrom(openFileKeyring, id)
-	if fallbackErr == nil {
-		return fallback, nil
-	}
-	if fallbackErr != keyring.ErrKeyNotFound {
-		log.Debug("file keyring load failed", "error", fallbackErr)
-	}
-	return nil, err
-}
-
-func loadFrom(opener func() (keyring.Keyring, error), id Identity) (*CachedToken, error) {
-	ring, err := opener()
+	rings, err := openStores()
 	if err != nil {
-		log.Debug("keyring open failed (load)", "error", err)
 		return nil, err
 	}
+	id, err = resolveIdentity(rings, id)
+	if err != nil {
+		return nil, err
+	}
+	var firstErr error
+	for _, ring := range rings {
+		cached, err := loadFrom(ring, id)
+		if err == nil {
+			return cached, nil
+		}
+		if firstErr == nil {
+			firstErr = err
+		}
+	}
+	return nil, firstErr
+}
+
+func loadFrom(ring keyring.Keyring, id Identity) (*CachedToken, error) {
 	key := storageKey(id)
 	item, err := ring.Get(key)
 	if err == keyring.ErrKeyNotFound {
@@ -163,15 +170,6 @@ func loadFrom(opener func() (keyring.Keyring, error), id Identity) (*CachedToken
 			key = legacyKey
 		} else if isIgnorableLegacyKeyError(err) {
 			err = keyring.ErrKeyNotFound
-		}
-	}
-	if err == keyring.ErrKeyNotFound && id.Email == "" {
-		// No email specified: attempt to find a single matching token for this base/client.
-		if alt, findErr := findSingleForClient(ring, id); findErr == nil {
-			key = alt
-			item, err = ring.Get(key)
-		} else {
-			log.Debug("keyring wildcard lookup failed", "error", findErr)
 		}
 	}
 	if err != nil {
@@ -192,85 +190,24 @@ func loadFrom(opener func() (keyring.Keyring, error), id Identity) (*CachedToken
 // An unavailable backend is tolerated if another opens, but removal failures
 // from an opened backend are returned. This does not revoke tokens at the service.
 func Clear(id Identity) error {
-	primaryOpened, primaryErr := clearFrom(openKeyring, id)
-	fileOpened, fileErr := clearFrom(openFileKeyring, id)
-
-	if primaryOpened && primaryErr != nil {
-		return primaryErr
-	}
-	if fileOpened && fileErr != nil {
-		return fileErr
-	}
-	if !primaryOpened && !fileOpened {
-		return primaryErr
-	}
-	if err := clearLegacyFallbackToken(cacheKey(id)); err != nil {
+	rings, err := openStores()
+	if err != nil {
 		return err
 	}
-	return nil
-}
-
-// clearFrom distinguishes an unavailable backend from an incomplete removal.
-func clearFrom(opener func() (keyring.Keyring, error), id Identity) (opened bool, err error) {
-	ring, err := opener()
+	id, err = resolveIdentity(rings, id)
 	if err != nil {
-		return false, err
+		return err
 	}
-	for i, key := range []string{storageKey(id), cacheKey(id)} {
-		if err := ring.Remove(key); err != nil {
-			if isAbsentOrUnnameable(err, i == 1) {
-				continue
-			}
-			return true, err
+	var removalErrors []error
+	for _, ring := range rings {
+		if err := clearFrom(ring, id); err != nil {
+			removalErrors = append(removalErrors, err)
 		}
 	}
-	return true, nil
-}
-
-func isAbsentOrUnnameable(err error, legacy bool) bool {
-	if errors.Is(err, keyring.ErrKeyNotFound) || errors.Is(err, fs.ErrNotExist) {
-		return true
+	if err := clearLegacyFallbackToken(cacheKey(id)); err != nil {
+		removalErrors = append(removalErrors, err)
 	}
-	// Only legacy keys can contain Windows-invalid filename characters. Other
-	// PathErrors (permissions, read-only mounts, I/O failures) may leave a token.
-	const windowsInvalidName syscall.Errno = 123
-	return legacy && runtime.GOOS == "windows" && errors.Is(err, windowsInvalidName)
-}
-
-func cacheKey(id Identity) string {
-	base := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(id.BaseURL)), "/")
-	email := strings.ToLower(strings.TrimSpace(id.Email))
-	return tokenKey + ":" + base + "|" + id.ClientID + "|" + email
-}
-
-func storageKey(id Identity) string {
-	return storageKeyV2Prefix + base64.RawURLEncoding.EncodeToString([]byte(cacheKey(id)))
-}
-
-func identityKeyFromStorageKey(key string) (string, bool) {
-	if strings.HasPrefix(key, storageKeyV2Prefix) {
-		raw := strings.TrimPrefix(key, storageKeyV2Prefix)
-		decoded, err := base64.RawURLEncoding.DecodeString(raw)
-		if err != nil {
-			return "", false
-		}
-		return string(decoded), true
-	}
-	if strings.HasPrefix(key, tokenKey+":") {
-		return key, true
-	}
-	return "", false
-}
-
-func isIgnorableLegacyKeyError(err error) bool {
-	if err == nil {
-		return false
-	}
-	var pathErr *os.PathError
-	if errors.As(err, &pathErr) {
-		return true
-	}
-	return strings.Contains(strings.ToLower(err.Error()), "filename, directory name, or volume label syntax is incorrect")
+	return errors.Join(removalErrors...)
 }
 
 func clearLegacyFallbackToken(key string) error {
@@ -328,23 +265,128 @@ func saveLegacyFallbackMap(entries map[string]CachedToken) error {
 	return os.Rename(temporary, path)
 }
 
-// findSingleForClient finds a single cached key for the given base/client when email is unknown.
-// Returns ErrKeyNotFound if none or multiple exist.
-func findSingleForClient(ring keyring.Keyring, id Identity) (string, error) {
-	keys, err := ring.Keys()
-	if err != nil {
-		return "", err
-	}
-	prefix := tokenKey + ":" + strings.TrimSuffix(strings.ToLower(strings.TrimSpace(id.BaseURL)), "/") + "|" + id.ClientID + "|"
-	matches := []string{}
-	for _, k := range keys {
-		identityKey, ok := identityKeyFromStorageKey(k)
-		if ok && strings.HasPrefix(identityKey, prefix) {
-			matches = append(matches, k)
+func openStores() ([]keyring.Keyring, error) {
+	var rings []keyring.Keyring
+	var openErrors []error
+	for _, opener := range []func() (keyring.Keyring, error){openKeyring, openFileKeyring} {
+		ring, err := opener()
+		if err != nil {
+			openErrors = append(openErrors, err)
+		} else {
+			rings = append(rings, ring)
 		}
 	}
-	if len(matches) == 1 {
-		return matches[0], nil
+	if len(rings) == 0 {
+		return nil, errors.Join(openErrors...)
 	}
-	return "", keyring.ErrKeyNotFound
+	return rings, nil
+}
+
+// Resolve omitted emails across all reachable stores before reading or deleting
+// any token, so a primary-store hit cannot conceal another cached account.
+func resolveIdentity(rings []keyring.Keyring, id Identity) (Identity, error) {
+	if strings.TrimSpace(id.Email) == "" {
+		identities := map[string]struct{}{}
+		for _, ring := range rings {
+			matches, err := keysForClient(ring, id)
+			if err != nil {
+				return id, err
+			}
+			for identity := range matches {
+				identities[identity] = struct{}{}
+			}
+		}
+		if len(identities) > 1 {
+			return id, ErrAmbiguousAccount
+		}
+		for identity := range identities {
+			id.Email = strings.TrimPrefix(identity, clientKeyPrefix(id))
+		}
+	}
+	return id, nil
+}
+
+func clearFrom(ring keyring.Keyring, id Identity) error {
+	for i, key := range []string{storageKey(id), cacheKey(id)} {
+		if err := ring.Remove(key); err != nil && !isAbsentOrUnnameable(err, i == 1) {
+			return err
+		}
+	}
+	return nil
+}
+
+func isAbsentOrUnnameable(err error, legacy bool) bool {
+	if errors.Is(err, keyring.ErrKeyNotFound) || errors.Is(err, fs.ErrNotExist) {
+		return true
+	}
+	// Only legacy keys can contain Windows-invalid filename characters. Other
+	// PathErrors (permissions, read-only mounts, I/O failures) may leave a token.
+	const windowsInvalidName syscall.Errno = 123
+	return legacy && runtime.GOOS == "windows" && errors.Is(err, windowsInvalidName)
+}
+
+func cacheKey(id Identity) string {
+	base := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(id.BaseURL)), "/")
+	// The production API host moved from app-api to client-api. Keep the legacy
+	// identity so existing headless sessions remain usable after upgrading.
+	if base == currentAPIBaseURL {
+		base = legacyAPIBaseURL
+	}
+	email := strings.ToLower(strings.TrimSpace(id.Email))
+	return tokenKey + ":" + base + "|" + id.ClientID + "|" + email
+}
+
+func storageKey(id Identity) string {
+	return storageKeyV2Prefix + base64.RawURLEncoding.EncodeToString([]byte(cacheKey(id)))
+}
+
+func identityKeyFromStorageKey(key string) (string, bool) {
+	if strings.HasPrefix(key, storageKeyV2Prefix) {
+		raw := strings.TrimPrefix(key, storageKeyV2Prefix)
+		decoded, err := base64.RawURLEncoding.DecodeString(raw)
+		if err != nil {
+			return "", false
+		}
+		return string(decoded), true
+	}
+	if strings.HasPrefix(key, tokenKey+":") {
+		return key, true
+	}
+	return "", false
+}
+
+func isIgnorableLegacyKeyError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var pathErr *os.PathError
+	if errors.As(err, &pathErr) {
+		return true
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "filename, directory name, or volume label syntax is incorrect")
+}
+
+func clientKeyPrefix(id Identity) string {
+	id.Email = ""
+	return cacheKey(id)
+}
+
+// Group legacy and current storage keys by account, preferring the current key.
+func keysForClient(ring keyring.Keyring, id Identity) (map[string]string, error) {
+	keys, err := ring.Keys()
+	if err != nil {
+		return nil, err
+	}
+	matches := map[string]string{}
+	prefix := clientKeyPrefix(id)
+	for _, key := range keys {
+		identity, ok := identityKeyFromStorageKey(key)
+		if !ok || !strings.HasPrefix(identity, prefix) {
+			continue
+		}
+		if _, exists := matches[identity]; !exists || strings.HasPrefix(key, storageKeyV2Prefix) {
+			matches[identity] = key
+		}
+	}
+	return matches, nil
 }

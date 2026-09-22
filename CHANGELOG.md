@@ -17,6 +17,40 @@ The first tagged release is 0.2.0; the 0.1.0 section reconstructs earlier projec
 - [FORK] Retain compatibility metrics command APIs while upstream removes retired endpoints.
 - [FORK] Track upstream release bases with the `-0xble.0.1.0` version suffix.
 
+## 0.2.8-0xble.0.1.0 - 2026-09-22
+
+**Highlights:** Authentication diagnostics protect session data, cached accounts require unambiguous selection, and daemon schedules follow the local clock across DST.
+
+- Fixed verbose authentication failures exposing response headers and bodies that may contain session cookies or echoed credentials; retain HTTP status diagnostics.
+- Fixed daemon schedules running at the wrong hour across daylight-saving transitions; skip nonexistent clock times and execute repeated times at most once per day.
+- Fixed cached login without an email silently choosing an account when multiple accounts exist across token stores; report an explicit account-selection error before sending requests.
+- Fixed `EIGHTCTL_CONFIG` being ignored on startup; load the selected file, preserve `--config` precedence, and report missing or malformed environment-selected files.
+
+## 0.2.7 - 2026-09-13
+
+**Highlights:** `whoami`, `logout`, `temp`, and the daemon behave correctly with cached sessions and schedules; sleep and presence dates respect your timezone and DST.
+
+- Fixed `whoami` unnecessarily logging in again instead of reusing the configured or cached user ID; an already configured ID can be printed without credentials.
+- Fixed logout leaving a usable cached session when email is omitted; reject ambiguous accounts without deleting tokens and recognize legacy/current keys for one account.
+- Fixed default sleep/presence dates using the host timezone and presence windows skipping a calendar day across DST; include timezone data in standalone builds.
+- Fixed daemon startup accepting invalid schedules and racing on PID-file creation; dry-run needs no credentials, and shutdown cancels active requests.
+- Fixed `temp` ignoring persistent flags and requiring credentials for help; reject malformed temperatures and report explicit missing or malformed config files before commands run.
+- Fixed `--fields` leaving unselected columns and `<nil>` cells in table/CSV output; apply the same field selection to all row-producing commands.
+- Fixed alarm, audio, and Autopilot options being ignored when sibling commands registered flags with the same names; preserve flag, environment, and config precedence.
+- Fixed malformed household user responses silently falling back to the authenticated user's side; reject missing or mismatched discovered IDs.
+- Fixed API retries delaying cancellation, retaining response bodies, and reusing rejected tokens when cache deletion fails.
+- Updated the preferred Go toolchain to 1.27.1 while retaining Go 1.26.7 as the supported minimum.
+
+## 0.2.6 - 2026-09-11
+
+### Highlights
+
+Client tests keep synthetic credentials out of your persistent token stores, and refreshed dependencies improve Unicode text handling and JOSE validation.
+
+- Fixed client authentication tests writing synthetic OAuth tokens to the developer's Keychain or file-backed cache; clarified how published macOS binaries and CGO-enabled source builds select token storage. Thanks @omarshahine.
+- Updated jose2go to 1.11.0 for stricter ECDH ephemeral-key validation and go-runewidth to 0.0.30 for grapheme-aware wrapping and width-calculation improvements.
+- Refreshed Ultraviolet and Go support modules, upgraded gofumpt to 0.12.0 and pnpm to 12.4.1, and retained Go 1.26.7 and Node.js 24 as the supported minimums.
+
 ## 0.2.5 - 2026-09-07
 
 ### Highlights

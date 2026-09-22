@@ -6,8 +6,8 @@ Maintained fork: `0xble/eightctl` of `steipete/eightctl`; the maintained branch 
 `main`. The named upstream branch means upstream's live default branch, resolved on
 every run before fetching; it is not statically pinned to `main`. Canonical checkout:
 `/Users/brianle/Repos/eightctl`.
-Accepted upstream baseline: `db84b936e0ba107209864508b434ff0b2761b553` (fetched
-2026-09-09). Publish only to `origin`; never push to `upstream`.
+Accepted upstream baseline: `26a7c1daf5d3be284b35f22848f90cf959d471cd`
+(fetched 2026-09-22). Publish only to `origin`; never push to `upstream`.
 
 ## Preserve
 

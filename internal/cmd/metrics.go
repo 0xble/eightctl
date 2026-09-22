@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/steipete/eightctl/internal/client"
-	"github.com/steipete/eightctl/internal/output"
 )
 
 var metricsCmd = &cobra.Command{Use: "metrics", Short: "Sleep metrics and insights"}
@@ -33,7 +32,7 @@ var metricsTrendsCmd = &cobra.Command{Use: "trends", RunE: func(cmd *cobra.Comma
 	if err := cl.Metrics().Trends(context.Background(), from, to, tz, &out); err != nil {
 		return err
 	}
-	return output.Print(output.Format(viper.GetString("output")), []string{"trends"}, []map[string]any{{"trends": out}})
+	return printRows([]string{"trends"}, []map[string]any{{"trends": out}})
 }}
 
 var metricsIntervalsCmd = &cobra.Command{Use: "intervals", RunE: func(cmd *cobra.Command, args []string) error {
@@ -49,7 +48,7 @@ var metricsIntervalsCmd = &cobra.Command{Use: "intervals", RunE: func(cmd *cobra
 	if err := cl.Metrics().Intervals(context.Background(), id, &out); err != nil {
 		return err
 	}
-	return output.Print(output.Format(viper.GetString("output")), []string{"interval"}, []map[string]any{{"interval": out}})
+	return printRows([]string{"interval"}, []map[string]any{{"interval": out}})
 }}
 
 var metricsSummaryCmd = &cobra.Command{Use: "summary", RunE: func(cmd *cobra.Command, args []string) error {
@@ -61,7 +60,7 @@ var metricsSummaryCmd = &cobra.Command{Use: "summary", RunE: func(cmd *cobra.Com
 	if err := cl.Metrics().Summary(context.Background(), &out); err != nil {
 		return err
 	}
-	return output.Print(output.Format(viper.GetString("output")), []string{"summary"}, []map[string]any{{"summary": out}})
+	return printRows([]string{"summary"}, []map[string]any{{"summary": out}})
 }}
 
 var metricsAggregateCmd = &cobra.Command{Use: "aggregate", RunE: func(cmd *cobra.Command, args []string) error {
@@ -73,7 +72,7 @@ var metricsAggregateCmd = &cobra.Command{Use: "aggregate", RunE: func(cmd *cobra
 	if err := cl.Metrics().Aggregate(context.Background(), &out); err != nil {
 		return err
 	}
-	return output.Print(output.Format(viper.GetString("output")), []string{"aggregate"}, []map[string]any{{"aggregate": out}})
+	return printRows([]string{"aggregate"}, []map[string]any{{"aggregate": out}})
 }}
 
 var metricsInsightsCmd = &cobra.Command{Use: "insights", RunE: func(cmd *cobra.Command, args []string) error {
@@ -85,7 +84,7 @@ var metricsInsightsCmd = &cobra.Command{Use: "insights", RunE: func(cmd *cobra.C
 	if err := cl.Metrics().Insights(context.Background(), &out); err != nil {
 		return err
 	}
-	return output.Print(output.Format(viper.GetString("output")), []string{"insights"}, []map[string]any{{"insights": out}})
+	return printRows([]string{"insights"}, []map[string]any{{"insights": out}})
 }}
 
 func init() {

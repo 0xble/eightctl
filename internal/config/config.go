@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -29,6 +30,9 @@ func Load(v *viper.Viper, configPath string, quiet bool) (Config, error) {
 	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_", ".", "_"))
 	v.AutomaticEnv()
 
+	if configPath == "" {
+		configPath = v.GetString("config")
+	}
 	if configPath != "" {
 		v.SetConfigFile(configPath)
 	} else {
@@ -44,7 +48,12 @@ func Load(v *viper.Viper, configPath string, quiet bool) (Config, error) {
 	v.SetDefault("timezone", "local")
 	v.SetDefault("output", "table")
 
-	if err := v.ReadInConfig(); err == nil {
+	if err := v.ReadInConfig(); err != nil {
+		var notFound viper.ConfigFileNotFoundError
+		if configPath != "" || !errors.As(err, &notFound) {
+			return Config{}, fmt.Errorf("read config: %w", err)
+		}
+	} else {
 		if !quiet {
 			fmt.Fprintf(os.Stderr, "Using config file: %s\n", v.ConfigFileUsed())
 		}

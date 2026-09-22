@@ -2,10 +2,15 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"slices"
 	"strings"
 )
+
+var ErrInvalidHouseholdUser = errors.New("invalid household user response")
 
 // HouseholdUserTarget describes a user that can be targeted for side-aware actions.
 type HouseholdUserTarget struct {
@@ -17,7 +22,7 @@ type HouseholdUserTarget struct {
 }
 
 func (t HouseholdUserTarget) DisplayName() string {
-	name := strings.TrimSpace(strings.TrimSpace(t.FirstName + " " + t.LastName))
+	name := strings.TrimSpace(t.FirstName + " " + t.LastName)
 	if name != "" {
 		return name
 	}
@@ -49,9 +54,7 @@ func (c *Client) HouseholdUserTargets(ctx context.Context) ([]HouseholdUserTarge
 		} `json:"result"`
 	}
 	path := fmt.Sprintf("/devices/%s", deviceID)
-	query := mapToValues(map[string]string{
-		"filter": "leftUserId,rightUserId,awaySides",
-	})
+	query := url.Values{"filter": {"leftUserId,rightUserId,awaySides"}}
 	if err := c.do(ctx, http.MethodGet, path, query, nil, &deviceRes); err != nil {
 		return nil, err
 	}
@@ -81,6 +84,12 @@ func (c *Client) HouseholdUserTargets(ctx context.Context) ([]HouseholdUserTarge
 		if err := c.do(ctx, http.MethodGet, fmt.Sprintf("/users/%s", userID), nil, nil, &userRes); err != nil {
 			return nil, err
 		}
+		if userRes.User.UserID == "" {
+			return nil, fmt.Errorf("%w: household user is missing a user ID", ErrInvalidHouseholdUser)
+		}
+		if userRes.User.UserID != userID {
+			return nil, fmt.Errorf("%w: requested %q, received %q", ErrInvalidHouseholdUser, userID, userRes.User.UserID)
+		}
 		targets = append(targets, HouseholdUserTarget{
 			UserID:    userRes.User.UserID,
 			Side:      resolveTargetSide(sideByUser[userRes.User.UserID], userRes.User.CurrentDevice.Side),
@@ -93,6 +102,21 @@ func (c *Client) HouseholdUserTargets(ctx context.Context) ([]HouseholdUserTarge
 		targets[0].Side = "solo"
 	}
 	return targets, nil
+}
+
+func orderedUniqueStrings(values ...string) []string {
+	out := []string{}
+	for _, value := range values {
+		out = appendUniqueString(out, value)
+	}
+	return out
+}
+
+func appendUniqueString(existing []string, value string) []string {
+	if value == "" || slices.Contains(existing, value) {
+		return existing
+	}
+	return append(existing, value)
 }
 
 // sideAssignmentsFromDevice builds a userID -> side map from the /devices payload.

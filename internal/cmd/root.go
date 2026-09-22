@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -31,7 +32,21 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
+	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		if cmd == tempCmd {
+			if err := parseTemperatureFlags(cmd, args); err != nil {
+				return err
+			}
+			if help, _ := cmd.Flags().GetBool("help"); help {
+				return nil
+			}
+		}
+		// A flag name belongs to the executing command, not its last registered sibling.
+		if err := viper.BindPFlags(cmd.LocalNonPersistentFlags()); err != nil {
+			return err
+		}
+		return initConfig()
+	}
 	rootCmd.SetVersionTemplate("{{.Version}}\n")
 
 	rootCmd.PersistentFlags().String("config", "", "config file (default ~/.config/eightctl/config.yaml)")
@@ -83,28 +98,11 @@ func init() {
 	rootCmd.AddCommand(logoutCmd)
 }
 
-func initConfig() {
-	cfg, err := config.Load(viper.GetViper(), viper.GetString("config"), viper.GetBool("config-quiet"))
+func initConfig() error {
+	_, err := config.Load(viper.GetViper(), viper.GetString("config"), viper.GetBool("config-quiet"))
 	if err != nil {
-		log.Fatalf("config: %v", err)
+		return fmt.Errorf("config: %w", err)
 	}
-
-	// ensure env works on the main viper, too
-	viper.SetEnvPrefix("EIGHTCTL")
-	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_", ".", "_"))
-	viper.AutomaticEnv()
-	// merge into viper defaults
-	viper.SetDefault("email", cfg.Email)
-	viper.SetDefault("password", cfg.Password)
-	viper.SetDefault("user_id", cfg.UserID)
-	viper.SetDefault("client_id", cfg.ClientID)
-	viper.SetDefault("client_secret", cfg.ClientSecret)
-	viper.SetDefault("client_id", cfg.ClientID)
-	viper.SetDefault("client_secret", cfg.ClientSecret)
-	viper.SetDefault("timezone", cfg.Timezone)
-	viper.SetDefault("output", cfg.Output)
-	viper.SetDefault("fields", cfg.Fields)
-	viper.SetDefault("verbose", cfg.Verbose)
 
 	if err := config.WarnInsecurePerms(viper.ConfigFileUsed()); err != nil {
 		logger.Warn(err.Error())
@@ -113,6 +111,7 @@ func initConfig() {
 	if viper.GetBool("verbose") {
 		log.SetLevel(log.DebugLevel)
 	}
+	return nil
 }
 
 func requireAuthFields() error {
@@ -129,6 +128,8 @@ func requireAuthFields() error {
 			viper.Set("user_id", cached.UserID)
 		}
 		return nil
+	} else if errors.Is(err, tokencache.ErrAmbiguousAccount) {
+		return err
 	}
 
 	missing := []string{}

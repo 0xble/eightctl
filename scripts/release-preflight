@@ -86,9 +86,8 @@ if (release.draft || release.prerelease || !release.published_at ||
     release.tag_name !== process.env.EXPECTED_TAG) {
   throw new Error('release is not the expected published stable release');
 }
-const packageReleaseVersion = packageJson.version.replace(/-0xble\.[0-9A-Za-z.-]+$/, '');
-if (packageReleaseVersion !== process.env.EXPECTED_VERSION) {
-  throw new Error('tagged package.json release base does not match the release');
+if (packageJson.version !== process.env.EXPECTED_VERSION) {
+  throw new Error('tagged package.json version does not match the release');
 }
 if (!notes.equals(expectedNotes) || release.body !== notes.toString('utf8')) {
   throw new Error('published release notes differ from the tagged changelog section');

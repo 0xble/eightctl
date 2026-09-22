@@ -33,6 +33,69 @@ func TestClientDataActionEndpoints(t *testing.T) {
 			want: recordedRequest{Method: http.MethodGet, Path: "/users/uid/intervals/session-1"},
 		},
 		{
+			name: "MetricsSummary",
+			call: func(ctx context.Context, c *Client) error {
+				var out any
+				return c.Metrics().Summary(ctx, &out)
+			},
+			want:      recordedRequest{Method: http.MethodGet, Path: "/users/uid/metrics/summary"},
+			wantQuery: map[string]string{"metrics": "all"},
+		},
+		{
+			name: "MetricsAggregate",
+			call: func(ctx context.Context, c *Client) error {
+				var out any
+				return c.Metrics().Aggregate(ctx, &out)
+			},
+			want: recordedRequest{Method: http.MethodGet, Path: "/users/uid/metrics/aggregate"},
+			wantQuery: map[string]string{
+				"metrics": "all",
+				"v2":      "true",
+			},
+		},
+		{
+			name: "MetricsInsights",
+			call: func(ctx context.Context, c *Client) error {
+				var out any
+				return c.Metrics().Insights(ctx, &out)
+			},
+			want: recordedRequest{Method: http.MethodGet, Path: "/users/uid/insights"},
+		},
+		{
+			name: "ListSchedules",
+			call: func(ctx context.Context, c *Client) error {
+				_, err := c.ListSchedules(ctx)
+				return err
+			},
+			want:      recordedRequest{Method: http.MethodGet, Path: "/users/uid/temperature/schedules"},
+			wantQuery: map[string]string{"specialization": "all"},
+		},
+		{
+			name: "CreateSchedule",
+			call: func(ctx context.Context, c *Client) error {
+				_, err := c.CreateSchedule(ctx, TemperatureSchedule{StartTime: "22:30", Level: -25})
+				return err
+			},
+			want:    recordedRequest{Method: http.MethodPost, Path: "/users/uid/temperature/schedules"},
+			bodyHas: `"startTime":"22:30"`,
+		},
+		{
+			name: "UpdateSchedule",
+			call: func(ctx context.Context, c *Client) error {
+				_, err := c.UpdateSchedule(ctx, "schedule-1", map[string]any{"enabled": false})
+				return err
+			},
+			want:    recordedRequest{Method: http.MethodPatch, Path: "/users/uid/temperature/schedules/schedule-1"},
+			bodyHas: `"enabled":false`,
+		},
+		{
+			name: "DeleteSchedule",
+			call: func(ctx context.Context, c *Client) error {
+				return c.DeleteSchedule(ctx, "schedule-1")
+			},
+			want: recordedRequest{Method: http.MethodDelete, Path: "/users/uid/temperature/schedules/schedule-1"},
+		},
+		{
 			name: "GetSmartSchedule",
 			call: func(ctx context.Context, c *Client) error {
 				_, err := c.GetSmartSchedule(ctx)

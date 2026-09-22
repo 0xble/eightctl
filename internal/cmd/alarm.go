@@ -3,13 +3,11 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	"github.com/steipete/eightctl/internal/client"
-	"github.com/steipete/eightctl/internal/output"
 )
 
 var alarmCmd = &cobra.Command{
@@ -40,8 +38,7 @@ var alarmListCmd = &cobra.Command{
 				"sound":     a.Sound,
 			})
 		}
-		rows = output.FilterFields(rows, viper.GetStringSlice("fields"))
-		return output.Print(output.Format(viper.GetString("output")), []string{"id", "time", "enabled", "days", "vibration", "sound"}, rows)
+		return printRows([]string{"id", "time", "enabled", "days", "vibration", "sound"}, rows)
 	},
 }
 
@@ -141,28 +138,16 @@ func init() {
 	alarmCreateCmd.Flags().Bool("disabled", false, "Create disabled")
 	alarmCreateCmd.Flags().Bool("no-vibration", false, "Disable vibration")
 	alarmCreateCmd.Flags().String("sound", "", "Sound id")
-	viper.BindPFlag("time", alarmCreateCmd.Flags().Lookup("time"))
-	viper.BindPFlag("days", alarmCreateCmd.Flags().Lookup("days"))
-	viper.BindPFlag("disabled", alarmCreateCmd.Flags().Lookup("disabled"))
-	viper.BindPFlag("no-vibration", alarmCreateCmd.Flags().Lookup("no-vibration"))
-	viper.BindPFlag("sound", alarmCreateCmd.Flags().Lookup("sound"))
 
 	alarmUpdateCmd.Flags().String("time", "", "HH:MM time")
 	alarmUpdateCmd.Flags().IntSlice("days", nil, "Comma-separated days 0=Sun..6=Sat")
 	alarmUpdateCmd.Flags().Bool("enabled", true, "Set enabled true/false")
 	alarmUpdateCmd.Flags().Bool("no-vibration", false, "Disable vibration")
 	alarmUpdateCmd.Flags().String("sound", "", "Sound id")
-	viper.BindPFlag("time", alarmUpdateCmd.Flags().Lookup("time"))
-	viper.BindPFlag("days", alarmUpdateCmd.Flags().Lookup("days"))
-	viper.BindPFlag("enabled", alarmUpdateCmd.Flags().Lookup("enabled"))
-	viper.BindPFlag("no-vibration", alarmUpdateCmd.Flags().Lookup("no-vibration"))
-	viper.BindPFlag("sound", alarmUpdateCmd.Flags().Lookup("sound"))
 
-	// add subcommands
 	alarmCmd.AddCommand(alarmListCmd, alarmCreateCmd, alarmUpdateCmd, alarmDeleteCmd, alarmSnoozeCmd, alarmDismissCmd, alarmDismissAllCmd, alarmVibeCmd)
 }
 
-// snooze
 var alarmSnoozeCmd = &cobra.Command{Use: "snooze <id>", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 	if err := requireAuthFields(); err != nil {
 		return err
@@ -194,21 +179,3 @@ var alarmVibeCmd = &cobra.Command{Use: "vibration-test", RunE: func(cmd *cobra.C
 	cl := client.New(viper.GetString("email"), viper.GetString("password"), viper.GetString("user_id"), viper.GetString("client_id"), viper.GetString("client_secret"))
 	return cl.Alarms().VibrationTest(context.Background())
 }}
-
-// parseDays convenience to support comma inputs (unused, kept for future).
-func parseDays(s string) ([]int, error) {
-	parts := strings.Split(s, ",")
-	res := make([]int, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p == "" {
-			continue
-		}
-		var v int
-		if _, err := fmt.Sscanf(p, "%d", &v); err != nil {
-			return nil, err
-		}
-		res = append(res, v)
-	}
-	return res, nil
-}

@@ -7,7 +7,7 @@ mkdir -p "$work/bin" "$work/assets"
 export PREFLIGHT_FIXTURE="$work"
 export PREFLIGHT_VERSION PREFLIGHT_PACKAGE_VERSION
 PREFLIGHT_PACKAGE_VERSION=$(node -p 'require("./package.json").version')
-PREFLIGHT_VERSION=$(printf '%s\n' "$PREFLIGHT_PACKAGE_VERSION" | sed 's/-0xble\.[0-9A-Za-z.-]*$//')
+PREFLIGHT_VERSION=$PREFLIGHT_PACKAGE_VERSION
 ./scripts/release-notes "v$PREFLIGHT_VERSION" > "$work/assets/RELEASE-NOTES.md"
 
 node <<'NODE'
