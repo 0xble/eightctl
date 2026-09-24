@@ -144,7 +144,7 @@ can still trigger a Keychain authorization prompt when accessing cached tokens;
 this install helper does not make authenticated commands prompt-free on
 unattended hosts. Published releases use the separate signed release pipeline.
 
-CI runs formatting, lint (including staticcheck and unused-code checks), race-enabled tests, the core-package coverage gate, and a release-artifact smoke test. Separate jobs test the minimum Go 1.26.7 and current Go 1.27.1 toolchains without automatic toolchain upgrades.
+Run `./bin/ci preflight` for fast local vet, build, tests, and lint when `golangci-lint` is installed. The optional repository pre-push hook invokes this profile. `./bin/ci gate "$(git rev-parse HEAD)"` runs the full PR core lane and requires `golangci-lint`, GoReleaser, Node.js, and jq (hosted CI installs lint v2.13.2 and GoReleaser v2.18.2); it rejects a wrong commit or dirty tracked files. The hosted gate also tests Go 1.26.7 and 1.27.1 in separate compatibility lanes, with one aggregate `qualification` result. `./bin/ci nightly "$(git rev-parse HEAD)"` adds uncached shuffled race tests to the core checks. Gate and nightly verify the exact checked-out commit after tool installation. Dependency graph submission and dispatch-only release workflows are separate from qualification.
 
 ## License
 
