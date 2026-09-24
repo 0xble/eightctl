@@ -41,9 +41,7 @@ jobs:
           version: v2.18.2
           install-only: true
       - name: Run exact-SHA nightly profile
-        env:
-          EXPECTED_SHA: ${{ github.sha }}
-        run: ./bin/ci nightly "$EXPECTED_SHA"
+        run: ./bin/ci nightly "${{ github.sha }}"
 
   compatibility:
     name: compatibility Go ${{ matrix.go }}
@@ -69,9 +67,7 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
       - name: Run exact-SHA compatibility nightly profile
-        env:
-          EXPECTED_SHA: ${{ github.sha }}
-        run: ./bin/ci nightly "$EXPECTED_SHA"
+        run: ./bin/ci nightly "${{ github.sha }}"
 
   qualification:
     name: qualification

@@ -14,18 +14,29 @@ profile=$1
 case "$profile" in preflight|gate|nightly) ;; *) usage ;; esac
 if [[ "$profile" == preflight ]]; then
   [[ $# -eq 1 ]] || usage
+  unset EXPECTED_SHA
 else
+  if [[ "${GITHUB_ACTIONS:-}" == true && $# -ne 2 ]]; then
+    echo 'Actions qualification requires an expected commit SHA' >&2
+    exit 1
+  fi
   [[ $# -eq 2 && "$2" =~ ^[[:xdigit:]]{40}$ ]] || usage
   expected=$2
-  actual=$(git rev-parse HEAD)
-  if [[ "$actual" != "$expected" ]]; then
-    printf 'exact-SHA check failed: expected %s, checked out %s\n' "$expected" "$actual" >&2
-    exit 1
-  fi
-  if [[ -n $(git status --porcelain --untracked-files=no) ]]; then
-    printf 'tracked tree is dirty; refusing to qualify %s\n' "$expected" >&2
-    exit 1
-  fi
+  # The SHA is control-plane input; release fixtures and child tests must not inherit it.
+  unset EXPECTED_SHA
+  verify_checkout() {
+    local actual
+    actual=$(git rev-parse HEAD)
+    if [[ "$actual" != "$expected" ]]; then
+      printf 'exact-SHA check failed: expected %s, checked out %s\n' "$expected" "$actual" >&2
+      exit 1
+    fi
+    if ! git diff --quiet || ! git diff --cached --quiet; then
+      printf 'tracked tree is dirty; refusing to qualify %s\n' "$expected" >&2
+      exit 1
+    fi
+  }
+  verify_checkout
 fi
 
 # Do not export the expected SHA: release fixtures replace git with a fake executable.
@@ -47,6 +58,8 @@ case "$lane" in core|compatibility) ;; *) printf 'unknown CI_LANE: %s\n' "$lane"
 if [[ "$lane" == compatibility ]]; then
   echo "$profile: compatibility tests ($(go version))"
   GOTOOLCHAIN=local go test ./...
+  verify_checkout
+  printf 'exact_sha=%s\n' "$expected"
   exit 0
 fi
 
@@ -89,3 +102,5 @@ if [[ "$profile" == nightly ]]; then
   echo 'nightly: uncached shuffled race suite'
   go test -race -count=1 -shuffle=on ./...
 fi
+verify_checkout
+printf 'exact_sha=%s\n' "$expected"
