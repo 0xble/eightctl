@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$ROOT"
+
+usage() {
+  printf 'usage: %s {preflight|gate|nightly} [expected-commit-sha]\n' "$0" >&2
+  exit 2
+}
+
+[[ $# -ge 1 && $# -le 2 ]] || usage
+profile=$1
+case "$profile" in preflight|gate|nightly) ;; *) usage ;; esac
+if [[ "$profile" == preflight ]]; then
+  [[ $# -eq 1 ]] || usage
+  unset EXPECTED_SHA
+else
+  if [[ "${GITHUB_ACTIONS:-}" == true && $# -ne 2 ]]; then
+    echo 'Actions qualification requires an expected commit SHA' >&2
+    exit 1
+  fi
+  [[ $# -eq 2 && "$2" =~ ^[[:xdigit:]]{40}$ ]] || usage
+  expected=$2
+  # The SHA is control-plane input; release fixtures and child tests must not inherit it.
+  unset EXPECTED_SHA
+  verify_checkout() {
+    local actual
+    actual=$(git rev-parse HEAD)
+    if [[ "$actual" != "$expected" ]]; then
+      printf 'exact-SHA check failed: expected %s, checked out %s\n' "$expected" "$actual" >&2
+      exit 1
+    fi
+    if ! git diff --quiet || ! git diff --cached --quiet; then
+      printf 'tracked tree is dirty; refusing to qualify %s\n' "$expected" >&2
+      exit 1
+    fi
+  }
+  verify_checkout
+fi
+
+# Do not export the expected SHA: release fixtures replace git with a fake executable.
+if [[ "$profile" == preflight ]]; then
+  echo 'preflight: vet, build, tests, optional lint'
+  go vet ./...
+  go build ./cmd/eightctl
+  go test ./...
+  if command -v golangci-lint >/dev/null 2>&1; then
+    golangci-lint run ./...
+  else
+    echo 'preflight: golangci-lint unavailable; skipping optional lint' >&2
+  fi
+  exit 0
+fi
+
+lane=${CI_LANE:-core}
+case "$lane" in core|compatibility) ;; *) printf 'unknown CI_LANE: %s\n' "$lane" >&2; exit 2 ;; esac
+if [[ "$lane" == compatibility ]]; then
+  echo "$profile: compatibility tests ($(go version))"
+  GOTOOLCHAIN=local go test ./...
+  verify_checkout
+  printf 'exact_sha=%s\n' "$expected"
+  exit 0
+fi
+
+echo "$profile: format, lint, race, install, release metadata/preflight/notes/artifact, coverage"
+command -v golangci-lint >/dev/null || { echo 'gate requires golangci-lint v2.13.2' >&2; exit 1; }
+command -v goreleaser >/dev/null || { echo 'gate requires GoReleaser v2.18.2' >&2; exit 1; }
+command -v node >/dev/null || { echo 'gate requires Node.js' >&2; exit 1; }
+command -v jq >/dev/null || { echo 'gate requires jq' >&2; exit 1; }
+git diff --check
+changed=$(go tool mvdan.cc/gofumpt -l .)
+if [[ -n "$changed" ]]; then
+  printf 'gofumpt would reformat:\n%s\n' "$changed" >&2
+  exit 1
+fi
+golangci-lint run ./...
+go test -race ./...
+install_root=$(mktemp -d)
+notes_root=$(mktemp -d)
+trap 'rm -rf "$install_root" "$notes_root"' EXIT
+for attempt in 1 2; do
+  GOFLAGS="-ldflags=-X=github.com/steipete/eightctl/internal/cmd.Version=install-proof-$attempt" \
+    make install PREFIX="$install_root/path with spaces/bin"
+  "$install_root/path with spaces/bin/eightctl" --help >/dev/null
+  test "$("$install_root/path with spaces/bin/eightctl" --version)" = "install-proof-$attempt"
+done
+./scripts/check-release-metadata
+./scripts/test-release-preflight
+make coverage
+./scripts/release-notes v0.2.2 > "$notes_root/release-notes.md"
+grep -q '^## 0\.2\.2 ' "$notes_root/release-notes.md"
+if grep -q '^## 0\.2\.1 ' "$notes_root/release-notes.md"; then exit 1; fi
+if ./scripts/release-notes v9.9.9 >/dev/null 2>&1; then exit 1; fi
+goreleaser build --snapshot --clean --single-target
+binary=$(jq -r '.[] | select(.type == "Binary") | .path' dist/artifacts.json)
+test -n "$binary"
+version=$(node -p 'require("./package.json").version')
+test "$("$binary" version)" = "$version"
+test "$("$binary" --version)" = "$version"
+if [[ "$profile" == nightly ]]; then
+  echo 'nightly: uncached shuffled race suite'
+  go test -race -count=1 -shuffle=on ./...
+fi
+verify_checkout
+printf 'exact_sha=%s\n' "$expected"

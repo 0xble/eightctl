@@ -28,6 +28,7 @@ unit and named dependencies before acting.
 | Headless authentication | File-only token storage and bounded retries | Every full run or changes to this responsibility | [Headless authentication](maintenance/headless-auth.md) |
 | API compatibility | Retained command APIs and provider payload shapes | Every full run or changes to this responsibility | [API compatibility](maintenance/api-compatibility.md) |
 | Fork distribution | Coherent fork upgrade, smoke, and version identity | Every full run or changes to this responsibility | [Fork distribution](maintenance/distribution.md) |
+| Fork CI | Exact-SHA qualification without duplicate PR workflows | Every full run or CI changes | [Fork CI](maintenance/fork-ci.md) |
 
 ## Update
 
