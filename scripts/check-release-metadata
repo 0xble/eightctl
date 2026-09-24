@@ -5,7 +5,8 @@ if [ "$#" -gt 1 ]; then
   echo "usage: $0 [release-version]" >&2
   exit 2
 fi
-requested_version=${1#v}
+requested_version=${1:-}
+requested_version=${requested_version#v}
 
 package_version=$(awk -F '"' '$2 == "version" { print $4; exit }' package.json)
 changelog_version=$(awk '/^## [0-9]+\.[0-9]+\.[0-9]+(-0xble\.[0-9A-Za-z.-]+)?( |$)/ { print $2; exit }' CHANGELOG.md)

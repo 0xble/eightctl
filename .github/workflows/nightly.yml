@@ -45,14 +45,43 @@ jobs:
           EXPECTED_SHA: ${{ github.sha }}
         run: ./bin/ci nightly "$EXPECTED_SHA"
 
+  compatibility:
+    name: compatibility Go ${{ matrix.go }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ['1.26.7', '1.27.1']
+    env:
+      GOTOOLCHAIN: local
+      CI_LANE: compatibility
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Assert checked-out SHA
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Run exact-SHA compatibility nightly profile
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: ./bin/ci nightly "$EXPECTED_SHA"
+
   qualification:
     name: qualification
     if: ${{ always() }}
-    needs: [nightly]
+    needs: [nightly, compatibility]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Require nightly validation
         env:
           NIGHTLY_RESULT: ${{ needs.nightly.result }}
-        run: test "$NIGHTLY_RESULT" = success
+          COMPATIBILITY_RESULT: ${{ needs.compatibility.result }}
+        run: test "$NIGHTLY_RESULT" = success && test "$COMPATIBILITY_RESULT" = success
