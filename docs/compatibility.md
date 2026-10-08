@@ -13,6 +13,9 @@ the toolkit rewrite, and where each part lives in `eightsleep` afterwards.
 `internal/compat` replays the invocations below against an `httptest` fake of
 the three Eight Sleep hosts and compares the result with golden output recorded
 from both old programs (see [Caller Compatibility Test](#caller-compatibility-test)).
+The script golden is pinned to dotfiles commit
+`57e47d09ed5b7382b598ac1ef2ba39bb2905ea62` and sha256
+`78ba73a13146b0f55886602a784eb553a1077566ea70a22a8c9415e8f4185e2b`.
 
 ## Names
 
@@ -26,7 +29,10 @@ Help and usage text name the program `eightsleep` under either binary name.
 
 ## Root Flags
 
-Every root flag is accepted before or after the command, as cobra allowed.
+Every root flag is accepted before or after the command, as cobra allowed. The
+new CLI does not provide cobra's `help <cmd>` subcommand or `completion <shell>`
+command; both now exit 2. Use `eightsleep <cmd> --help` for command help and
+keep shell completion generation outside this compatibility surface.
 
 | Flag | Default | Env fallback | Config key | Old use | New |
 | --- | --- | --- | --- | --- | --- |
@@ -167,6 +173,8 @@ given.
    Both together are refused.
 3. `away on`/`off` default to the authenticated user's side. `--both` writes
    every household user and conflicts with `--side` and `--target-user-id`.
+   It is a leaf flag, so use `away on --both`; the old `away --both on` form
+   now exits 2.
 4. `away status` and `status --all-sides` read every discovered side.
 
 ## Safety Gates
@@ -216,7 +224,7 @@ No caller parses `--help`, `Usage:`, version strings, error text or exit codes.
 
 ## Caller Compatibility Test
 
-`internal/compat` holds 135 cases: every `eightctl` command shape in the table
+`internal/compat` holds 138 cases: every `eightctl` command shape in the table
 above (each row command in at least one `--output` format, every write, the
 household targeting variants, provider fallbacks and the error paths) and
 every `eightsleepctl` command. No external caller exists, so the cases cover
@@ -236,7 +244,7 @@ all of them to match, except where a case documents a change.
 `ref` (default `a2b8291`) and copies the script, and changes exactly one thing
 in each: the Eight Sleep hosts read `EIGHTSLEEP_COMPAT_BASE`.
 
-Result on the rewrite: 135 of 135 pass. 20 cases expect a family exit code
+Result on the rewrite: 138 of 138 pass. 20 cases expect a family exit code
 instead of the old 1 or 0 (C1) and still compare everything else. 19 carry a
 documented difference: 9 compare the exit code, requests and write bodies but
 not the output (version string, parse-error text, the alarm table's sound
@@ -270,6 +278,13 @@ Found here, general to any tool, not worked around by bypassing toolkit:
 | G2 | The CLI rebuilds the input by marshalling the parsed struct to JSON and decoding it over `NewInput()`, so a field with `omitempty` and a kong `default` loses an explicit zero: `--enabled=false` with `default:"true"` arrives as `true`, `--level 0` with `default:"50"` as `50`. HTTP and MCP are unaffected | `autopilot ... --enabled` and `audio volume --level` use pointer fields with the default applied in the handler. Caught by conformance; the goldens prove the old bodies |
 | G3 | Render hooks cannot see the toolkit's `--fields`, so a tool cannot honour it in human output | `--fields` no longer filters `--output table/csv/json` (C4) |
 
+Because kong treats separate-form values beginning with `-` as flags, these
+new invocations are rejected with exit 2: `base angle --head -10`, `audio seek
+--position -1`, `audio volume --level -5`, and `alarm create --sound -x`.
+Use equals form (`--head=-10`, `--position=-1`, `--level=-5`, `--sound=-x`)
+when a negative value or dash-prefixed string is required. No inventoried caller
+uses these forms.
+
 ## Intentional Changes
 
 Every other inventoried command, flag, default, output and exit code is
@@ -292,6 +307,9 @@ unchanged and covered by the caller test.
 | C13 | `logout --json` prints `{"cleared": true}` | toolkit `--json` | additive |
 | C14 | `~/.config/eightsleep/config.yaml` and `config.yml` are read when present, and `EIGHTSLEEP_*` variables win over `EIGHTCTL_*` | the rename | additive |
 | C15 | `eightsleepctl` equivalents differ where the table above says: `alarm list` rows instead of raw alarms, `whoami` makes no token request when a user ID is configured and then omits `token_expires_at`, expiries end in `Z` instead of `+00:00`, the dry-run `fallback` names the per-alarm route the fallback really uses, `client_id`/`client_secret` default to the public app client, the script's own token cache is not read, and failures use the family exit codes | one implementation per command | none: no caller of the script was found |
+| C16 | Separate-form negative values and dash-prefixed strings are rejected by kong (`base angle --head -10`, `audio seek --position -1`, `audio volume --level -5`, `alarm create --sound -x`); use `--flag=value` instead | toolkit parser (G1) | none found |
+| C17 | `--both` is a leaf flag: `away on --both` works, while the old persistent form `away --both on` exits 2 | toolkit parser | none found |
+| C18 | Cobra's `help <cmd>` and `completion <shell>` commands are not exposed; both exit 2. Use `<cmd> --help` for command help | toolkit CLI | none found |
 
 ## MCP Exposure
 
