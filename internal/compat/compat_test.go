@@ -38,6 +38,7 @@ import (
 var (
 	recordEightctl      = flag.String("record-eightctl", "", "path to the pre-toolkit eightctl; rewrite its goldens")
 	recordEightsleepctl = flag.String("record-eightsleepctl", "", "path to the eightsleepctl script; rewrite its goldens")
+	recordPython        = flag.String("record-python", "python3", "Python 3.10 or later to run the eightsleepctl script with")
 )
 
 func TestMain(m *testing.M) {
@@ -59,8 +60,9 @@ type tcase struct {
 	// old is the program the golden was recorded from.
 	old  string
 	args []string
-	// newArgs, when set, is the eightsleep invocation of an eightsleepctl
-	// command; otherwise eightsleep runs args.
+	// newArgs, when set, is the eightsleep invocation: the equivalent of an
+	// eightsleepctl command, or a new spelling of an eightctl one. Otherwise
+	// eightsleep runs args.
 	newArgs []string
 	fake    func(*eightfake.Server)
 	// noConfig runs without a config file; userID puts user_id in it.
@@ -126,6 +128,10 @@ var cases = []tcase{
 	{name: "alarm-list-fields", args: []string{"--fields", "id,time", "alarm", "list", "--output", "json"},
 		change: "--fields filters --json output only (C4)", newJSONFrom: "alarm-list-json"},
 	{name: "presence-window", args: []string{"presence", "--from", "2026-10-04", "--to", "2026-10-05", "--output", "json"}},
+	// eightctl had no "presence check"; it is the new explicit spelling of
+	// presence (C7), recorded from eightctl's presence.
+	{name: "presence-check", args: []string{"presence", "--from", "2026-10-04", "--to", "2026-10-05", "--output", "json"},
+		newArgs: []string{"presence", "check", "--from", "2026-10-04", "--to", "2026-10-05", "--output", "json"}},
 	{name: "presence-default", args: []string{"presence"}, clock: true},
 	{name: "schedule", args: []string{"schedule", "list", "--output", "json"}},
 	{name: "schedule-none", args: []string{"schedule", "list"}, fake: func(s *eightfake.Server) { s.NoSchedule = true }},
@@ -201,7 +207,9 @@ var cases = []tcase{
 	{name: "away-on-side", args: []string{"away", "on", "--side", "left"}, clock: true},
 	{name: "away-on-quiet", args: []string{"--quiet", "away", "on"}, clock: true},
 	{name: "nap-on", args: []string{"tempmode", "nap", "on"}},
+	{name: "nap-off", args: []string{"tempmode", "nap", "off"}},
 	{name: "nap-extend", args: []string{"tempmode", "nap", "extend"}},
+	{name: "hotflash-on", args: []string{"tempmode", "hotflash", "on"}},
 	{name: "hotflash-off", args: []string{"tempmode", "hotflash", "off"}},
 	{name: "audio-play", args: []string{"audio", "play", "--track", "t1"}},
 	{name: "audio-pause", args: []string{"audio", "pause"}},
@@ -498,7 +506,7 @@ func runOld(t *testing.T, bin string, c tcase) golden {
 	cmd := exec.Command(bin, args...)
 	if c.old == eightsleepctl {
 		args = append([]string{"--config", filepath.Join(home, ".config", "eightctl", "config.yaml"), "--output", "json"}, c.args...)
-		cmd = exec.Command("python3", append([]string{"-I", bin}, args...)...)
+		cmd = exec.Command(*recordPython, append([]string{"-I", bin}, args...)...)
 	}
 	cmd.Env = []string{"PATH=" + os.Getenv("PATH")}
 	for k, v := range env {
@@ -518,7 +526,14 @@ func runOld(t *testing.T, bin string, c tcase) golden {
 	if m := regexp.MustCompile(`(?m)^Error: (.*)$`).FindStringSubmatch(stderr.String()); m != nil {
 		errLine = m[1]
 	}
-	return result(c, time.Now(), code, stdout.String(), errLine, fake, home)
+	g := result(c, time.Now(), code, stdout.String(), errLine, fake, home)
+	// Every eightsleepctl case is a success that reaches the provider. A
+	// nonzero exit or no request means the script did not run as recorded
+	// (an old Python, a missing module), not a contract to keep.
+	if c.old == eightsleepctl && (g.Exit != 0 || len(g.Requests) == 0) {
+		t.Fatalf("eightsleepctl recorded exit %d with %d requests; stderr:\n%s", g.Exit, len(g.Requests), stderr.String())
+	}
+	return g
 }
 
 func runNew(t *testing.T, c tcase) golden {
@@ -534,9 +549,18 @@ func runNewAt(t *testing.T, c tcase, now time.Time) golden {
 	for k, v := range env {
 		t.Setenv(k, v)
 	}
+	// Unset every variable the new program reads, so the caller's
+	// environment cannot change a case. Set-then-unset restores it afterwards.
+	scrub := []string{"EIGHTSLEEPCTL_PRESENCE_MAX_AGE_SECONDS", "EIGHTSLEEPCTL_ABSENCE_MIN_AGE_SECONDS"}
 	for _, p := range []string{"EIGHTCTL_", "EIGHTSLEEP_"} {
 		for _, k := range []string{"EMAIL", "PASSWORD", "USER_ID", "CLIENT_ID", "CLIENT_SECRET", "TIMEZONE", "OUTPUT", "CONFIG", "QUIET", "CONFIG_QUIET", "VERBOSE"} {
-			t.Setenv(p+k, "")
+			scrub = append(scrub, p+k)
+		}
+	}
+	for _, k := range scrub {
+		t.Setenv(k, "")
+		if err := os.Unsetenv(k); err != nil {
+			t.Fatal(err)
 		}
 	}
 	hosts := fake.Hosts()
