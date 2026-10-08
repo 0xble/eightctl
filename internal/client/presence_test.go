@@ -85,7 +85,7 @@ func TestGetPresenceUsesTrendsEndpoint(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/users/me", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"user":{"userId":"uid-123","devices":["dev-1"],"currentDevice":{"id":"dev-1"}}}`))
+		_, _ = w.Write([]byte(`{"user":{"userId":"uid-123","devices":["dev-1"],"currentDevice":{"id":"dev-1"}}}`))
 	})
 	mux.HandleFunc("/users/uid-123/trends", func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.Path
@@ -93,7 +93,7 @@ func TestGetPresenceUsesTrendsEndpoint(t *testing.T) {
 		gotFrom = r.URL.Query().Get("from")
 		gotTo = r.URL.Query().Get("to")
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"days":[]}`))
+		_, _ = w.Write([]byte(`{"days":[]}`))
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -129,13 +129,13 @@ func TestGetPresenceUsesProvidedDateRange(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/users/me", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"user":{"userId":"uid-123","devices":["dev-1"],"currentDevice":{"id":"dev-1"}}}`))
+		_, _ = w.Write([]byte(`{"user":{"userId":"uid-123","devices":["dev-1"],"currentDevice":{"id":"dev-1"}}}`))
 	})
 	mux.HandleFunc("/users/uid-123/trends", func(w http.ResponseWriter, r *http.Request) {
 		gotFrom = r.URL.Query().Get("from")
 		gotTo = r.URL.Query().Get("to")
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"days":[]}`))
+		_, _ = w.Write([]byte(`{"days":[]}`))
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()

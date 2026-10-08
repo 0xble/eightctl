@@ -61,19 +61,19 @@ func writeActionResponse(t *testing.T, w http.ResponseWriter, r *http.Request) {
 	t.Helper()
 	switch {
 	case r.URL.Path == "/users/uid/alarms" && r.Method == http.MethodGet:
-		io.WriteString(w, `{"alarms":[{"id":"alarm-1","time":"07:00","enabled":true,"daysOfWeek":[1],"vibration":true}]}`)
+		_, _ = io.WriteString(w, `{"alarms":[{"id":"alarm-1","time":"07:00","enabled":true,"daysOfWeek":[1],"vibration":true}]}`)
 	case strings.HasPrefix(r.URL.Path, "/users/uid/alarms") && (r.Method == http.MethodPost || r.Method == http.MethodPatch):
-		io.WriteString(w, `{"alarm":{"id":"alarm-1","time":"07:00","enabled":true}}`)
+		_, _ = io.WriteString(w, `{"alarm":{"id":"alarm-1","time":"07:00","enabled":true}}`)
 	case r.URL.Path == "/users/uid/audio/tracks" || r.URL.Path == "/audio/tracks":
-		io.WriteString(w, `{"tracks":[{"id":"track-1","title":"Rain","type":"sound"}]}`)
+		_, _ = io.WriteString(w, `{"tracks":[{"id":"track-1","title":"Rain","type":"sound"}]}`)
 	case r.URL.Path == "/users/uid/temperature":
-		io.WriteString(w, `{"smart":{"enabled":true}}`)
+		_, _ = io.WriteString(w, `{"smart":{"enabled":true}}`)
 	case r.URL.Path == "/v1/users/uid/temperature":
-		io.WriteString(w, `{"currentLevel":12,"currentState":{"type":"smart"}}`)
+		_, _ = io.WriteString(w, `{"currentLevel":12,"currentState":{"type":"smart"}}`)
 	case r.URL.Path == "/users/uid/trends":
-		io.WriteString(w, `{"days":[{"day":"2026-04-22","score":88}]}`)
+		_, _ = io.WriteString(w, `{"days":[{"day":"2026-04-22","score":88}]}`)
 	default:
-		json.NewEncoder(w).Encode(map[string]any{"ok": true})
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
 	}
 }
 

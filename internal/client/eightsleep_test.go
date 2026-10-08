@@ -25,13 +25,13 @@ func mockServer(t *testing.T) (*httptest.Server, *Client) {
 
 	mux.HandleFunc("/users/me", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"user":{"userId":"uid-123","devices":["dev-1"],"currentDevice":{"id":"dev-1"}}}`))
+		_, _ = w.Write([]byte(`{"user":{"userId":"uid-123","devices":["dev-1"],"currentDevice":{"id":"dev-1"}}}`))
 	})
 
 	mux.HandleFunc("/v1/users/uid-123/temperature", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`{"currentLevel":5,"currentState":{"type":"on"}}`))
+			_, _ = w.Write([]byte(`{"currentLevel":5,"currentState":{"type":"on"}}`))
 			return
 		}
 		if r.Method == http.MethodPut {
@@ -93,7 +93,7 @@ func TestAuthTokenEndpoint_FormEncoded(t *testing.T) {
 			t.Errorf("username = %q, want test@example.com", got)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"access_token": "tok-123",
 			"expires_in":   3600,
 			"userId":       "uid-abc",
@@ -142,7 +142,7 @@ func TestNoExplicitGzipHeader(t *testing.T) {
 	mux.HandleFunc("/check", func(w http.ResponseWriter, r *http.Request) {
 		ae := r.Header.Get("Accept-Encoding")
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"accept_encoding": ae})
+		_ = json.NewEncoder(w).Encode(map[string]string{"accept_encoding": ae})
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -220,12 +220,12 @@ func TestSetAwayMode(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/users/me", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"user":{"userId":"uid-123","currentDevice":{"id":"dev-1"}}}`))
+		_, _ = w.Write([]byte(`{"user":{"userId":"uid-123","currentDevice":{"id":"dev-1"}}}`))
 	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		gotMethod = r.Method
 		gotPath = r.URL.Path
-		json.NewDecoder(r.Body).Decode(&gotBody)
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
 		w.WriteHeader(http.StatusOK)
 	})
 	srv := httptest.NewServer(mux)
@@ -276,11 +276,11 @@ func TestDeviceSides(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/users/me", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"user":{"userId":"uid-123","currentDevice":{"id":"dev-1"}}}`))
+		_, _ = w.Write([]byte(`{"user":{"userId":"uid-123","currentDevice":{"id":"dev-1"}}}`))
 	})
 	mux.HandleFunc("/devices/dev-1", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"result":{"leftUserId":"uid-left","rightUserId":"uid-right"}}`))
+		_, _ = w.Write([]byte(`{"result":{"leftUserId":"uid-left","rightUserId":"uid-right"}}`))
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -442,13 +442,13 @@ func TestGetAwayMode(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/users/me", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"user":{"userId":"uid-123","currentDevice":{"id":"dev-1"}}}`))
+		_, _ = w.Write([]byte(`{"user":{"userId":"uid-123","currentDevice":{"id":"dev-1"}}}`))
 	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		gotMethod = r.Method
 		gotPath = r.URL.Path
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"isAway":true}`))
+		_, _ = w.Write([]byte(`{"isAway":true}`))
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -481,7 +481,7 @@ func TestGetAwayModeExplicitUser(t *testing.T) {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.Path
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"isAway":false}`))
+		_, _ = w.Write([]byte(`{"isAway":false}`))
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -509,7 +509,7 @@ func TestGetAwayModeInvalidResponse(t *testing.T) {
 	for _, body := range []string{`{}`, `{"isAway":null}`, `{"isAway":"false"}`} {
 		t.Run(body, func(t *testing.T) {
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Write([]byte(body))
+				_, _ = w.Write([]byte(body))
 			}))
 			defer srv.Close()
 			c := New("e", "p", "uid-123", "", "")

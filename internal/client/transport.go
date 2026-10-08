@@ -97,7 +97,7 @@ func (c *Client) doRequest(ctx context.Context, method, u string, body any, out 
 		}
 		switch resp.StatusCode {
 		case http.StatusTooManyRequests:
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			if attempt >= maxRetries {
 				return false, &APIError{Method: method, URL: u, Status: resp.StatusCode,
 					msg: fmt.Sprintf("rate limited after %d retries: %s %s", maxRetries, method, u)}
@@ -110,7 +110,7 @@ func (c *Client) doRequest(ctx context.Context, method, u string, body any, out 
 			case <-timer.C:
 			}
 		case http.StatusUnauthorized:
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			if attempt >= maxRetries {
 				return false, &APIError{Method: method, URL: u, Status: resp.StatusCode,
 					msg: fmt.Sprintf("unauthorized after %d retries: %s %s", maxRetries, method, u)}
@@ -122,7 +122,7 @@ func (c *Client) doRequest(ctx context.Context, method, u string, body any, out 
 				return false, err
 			}
 		default:
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 			reader, err := decodedBody(resp)
 			if err != nil {
 				return false, err

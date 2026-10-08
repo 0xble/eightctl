@@ -14,10 +14,10 @@ func TestHouseholdTargetsRejectInvalidUserIdentity(t *testing.T) {
 		t.Run(id, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path == "/devices/dev" {
-					w.Write([]byte(`{"result":{"leftUserId":"expected-user"}}`))
+					_, _ = w.Write([]byte(`{"result":{"leftUserId":"expected-user"}}`))
 					return
 				}
-				json.NewEncoder(w).Encode(map[string]any{"user": map[string]string{"userId": id}})
+				_ = json.NewEncoder(w).Encode(map[string]any{"user": map[string]string{"userId": id}})
 			}))
 			defer server.Close()
 			c := New("fixture", "fixture", "authenticated-user", "", "")

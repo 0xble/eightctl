@@ -33,7 +33,7 @@ func (c *Client) Authenticate(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 300 {
 		slog.Debug("token auth failed", "status", resp.StatusCode)
 		return &APIError{Method: http.MethodPost, Status: resp.StatusCode, Token: true,

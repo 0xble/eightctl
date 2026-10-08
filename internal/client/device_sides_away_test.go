@@ -21,12 +21,12 @@ func TestDeviceSidesEmptyWhenEveryoneAway(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/users/me", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"user":{"userId":"uid-a","currentDevice":{"id":"dev-1"}}}`))
+		_, _ = w.Write([]byte(`{"user":{"userId":"uid-a","currentDevice":{"id":"dev-1"}}}`))
 	})
 	mux.HandleFunc("/devices/dev-1", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		// Captured from a live Pod 2 Pro with both sides away.
-		w.Write([]byte(`{"result":{"deviceId":"dev-1"}}`))
+		_, _ = w.Write([]byte(`{"result":{"deviceId":"dev-1"}}`))
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -53,24 +53,24 @@ func TestHouseholdUserTargetsSurvivesEveryoneAway(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/users/me", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"user":{"userId":"uid-a","currentDevice":{"id":"dev-1"}}}`))
+		_, _ = w.Write([]byte(`{"user":{"userId":"uid-a","currentDevice":{"id":"dev-1"}}}`))
 	})
 	mux.HandleFunc("/devices/dev-1", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.URL.Query().Get("filter") != "leftUserId,rightUserId,awaySides" {
-			w.Write([]byte(`{"result":{"deviceId":"dev-1"}}`))
+			_, _ = w.Write([]byte(`{"result":{"deviceId":"dev-1"}}`))
 			return
 		}
-		w.Write([]byte(`{"result":{"leftUserId":"uid-a","rightUserId":"uid-b",
+		_, _ = w.Write([]byte(`{"result":{"leftUserId":"uid-a","rightUserId":"uid-b",
 			"awaySides":{"leftUserId":"uid-a","rightUserId":"uid-b"}}}`))
 	})
 	mux.HandleFunc("/users/uid-a", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"user":{"userId":"uid-a","firstName":"A","currentDevice":{"side":"left"}}}`))
+		_, _ = w.Write([]byte(`{"user":{"userId":"uid-a","firstName":"A","currentDevice":{"side":"left"}}}`))
 	})
 	mux.HandleFunc("/users/uid-b", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"user":{"userId":"uid-b","firstName":"B","currentDevice":{"side":"right"}}}`))
+		_, _ = w.Write([]byte(`{"user":{"userId":"uid-b","firstName":"B","currentDevice":{"side":"right"}}}`))
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
