@@ -1,21 +1,34 @@
 # Changelog
 
-All notable changes to this project are documented here.
+All notable changes to `eightsleep` (formerly `eightctl`) are recorded here.
+This project follows [Semantic Versioning 2.0.0](https://semver.org/).
+Entries before the rename are the history of the `0xble/eightctl` fork of
+[steipete/eightctl](https://github.com/steipete/eightctl).
 
-## Fork convention (0xble)
+## [Unreleased]
 
-- Upstream entries are unprefixed.
-- Fork-only divergences are marked `[FORK]`.
+### Changed
 
-The first tagged release is 0.2.0; the 0.1.0 section reconstructs earlier project history from git.
-
-## Unreleased
-
-### Fork divergence
-
-- [FORK] Retain a file-backed-only token keyring and bounded authentication retries for noninteractive use.
-- [FORK] Retain compatibility metrics command APIs while upstream removes retired endpoints.
-- [FORK] Track upstream release bases with the `-0xble.0.1.0` version suffix.
+- Renamed to `eightsleep` (module `github.com/0xble/eightsleep`) and rewritten
+  on github.com/0xble/toolkit: every command except `logout` and `daemon` is an
+  operation, also served over HTTP (`eightsleep serve`) and MCP
+  (`eightsleep mcp`), and `eightsleep metadata --json` describes them. Releases
+  also ship the binary as `eightctl`.
+- Absorbs the `eightsleepctl` script: new `alarm active` and `presence detail`,
+  `whoami --json` reports the cached token's expiry, and `alarm dismiss-all`
+  uses the app API route the script verified, falling back to dismissing each
+  active alarm.
+- Exit codes follow the family table: usage errors 2, not found 3, auth 5,
+  rate limits 6, timeouts 7. A bare invocation is a usage error.
+- Failures print one `error: <message>` line, or a JSON envelope with `--json`
+  or `--agent`, instead of the usage text and a `FATAL` log line.
+- `--json` and `--agent` print the result as JSON. Writes accept `--dry-run`.
+  `--fields` filters `--json` output only.
+- A negative temperature level needs `--` before it: `eightsleep temp --side
+  right -- -40`.
+- The config file and token cache stay where they were.
+  `~/.config/eightsleep/config.yaml` is read instead when it exists, and
+  `EIGHTSLEEP_` environment variables win over `EIGHTCTL_`.
 
 ## 0.2.8-0xble.0.1.0 - 2026-09-22
 
