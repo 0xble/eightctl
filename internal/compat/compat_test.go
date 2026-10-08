@@ -235,7 +235,7 @@ var cases = []tcase{
 		fake: func(s *eightfake.Server) { s.DismissAllStatus = 405 }},
 	{name: "esc-dismiss-all-dry-run", old: eightsleepctl, userID: true, args: []string{"alarm", "dismiss-all", "--dry-run"},
 		newArgs: []string{"alarm", "dismiss-all", "--dry-run", "--json"},
-		change: "fallback names the route the fallback really uses (POST each active alarm's dismiss) instead of a routines PUT"},
+		change:  "fallback names the route the fallback really uses (POST each active alarm's dismiss) instead of a routines PUT"},
 	{name: "esc-presence", old: eightsleepctl, userID: true, args: []string{"presence"}, newArgs: []string{"presence", "detail", "--json"}},
 	{name: "esc-presence-stale", old: eightsleepctl, userID: true, args: []string{"presence"}, newArgs: []string{"presence", "detail", "--json"},
 		fake: func(s *eightfake.Server) { s.StaleSignals = true }},
@@ -243,16 +243,16 @@ var cases = []tcase{
 
 // golden is what one case produced.
 type golden struct {
-	Caller     string               `json:"caller,omitempty"`
-	Program    string               `json:"program"`
-	Args       []string             `json:"args"`
-	NewArgs    []string             `json:"new_args,omitempty"`
-	Exit       int                  `json:"exit"`
-	StdoutJSON any                  `json:"stdout_json,omitempty"`
-	StdoutText string               `json:"stdout_text,omitempty"`
-	Error      string               `json:"error,omitempty"`
+	Caller     string              `json:"caller,omitempty"`
+	Program    string              `json:"program"`
+	Args       []string            `json:"args"`
+	NewArgs    []string            `json:"new_args,omitempty"`
+	Exit       int                 `json:"exit"`
+	StdoutJSON any                 `json:"stdout_json,omitempty"`
+	StdoutText string              `json:"stdout_text,omitempty"`
+	Error      string              `json:"error,omitempty"`
 	Requests   []eightfake.Request `json:"requests"`
-	Change     string               `json:"change,omitempty"`
+	Change     string              `json:"change,omitempty"`
 }
 
 func TestCallers(t *testing.T) {
