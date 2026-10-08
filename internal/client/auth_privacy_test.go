@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"charm.land/log/v2"
+	"log/slog"
 	"github.com/99designs/keyring"
-	"github.com/steipete/eightctl/internal/tokencache"
+	"github.com/0xble/eightsleep/internal/tokencache"
 )
 
 func TestAmbiguousCachedAccountsDoNotAuthenticate(t *testing.T) {
@@ -48,11 +48,9 @@ func TestAuthenticationFailureDoesNotLogResponseSecrets(t *testing.T) {
 	authURL = server.URL
 	t.Cleanup(func() { authURL = previousURL })
 	var logs bytes.Buffer
-	previousLogger := log.Default()
-	logger := log.New(&logs)
-	logger.SetLevel(log.DebugLevel)
-	log.SetDefault(logger)
-	t.Cleanup(func() { log.SetDefault(previousLogger) })
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	t.Cleanup(func() { slog.SetDefault(previousLogger) })
 
 	err := New("fixture", "fixture", "uid", "fixture", "fixture").Authenticate(t.Context())
 	if err == nil || !strings.Contains(err.Error(), "400 Bad Request") {

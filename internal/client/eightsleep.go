@@ -39,6 +39,57 @@ type Client struct {
 	AppURL   string
 	token    string
 	tokenExp time.Time
+
+	// Now is the clock for presence windows. Nil means time.Now.
+	Now func() time.Time
+
+	// hosts, when set by UseHosts, replaces the production hosts.
+	hosts *Hosts
+}
+
+func (c *Client) now() time.Time {
+	if c.Now != nil {
+		return c.Now()
+	}
+	return time.Now()
+}
+
+// Hosts replaces the three Eight Sleep hosts, each a scheme and host with no
+// path, so tests and fakes never reach the real service.
+type Hosts struct {
+	Client string // https://client-api.8slp.net
+	App    string // https://app-api.8slp.net
+	Auth   string // https://auth-api.8slp.net
+}
+
+// UseHosts points every request at h. The client API keeps its fallback to
+// the app API when a route is missing.
+func (c *Client) UseHosts(h Hosts) {
+	c.hosts = &h
+	c.BaseURL = h.Client + "/v1"
+	c.AppURL = h.App
+}
+
+func (c *Client) authEndpoint() string {
+	if c.hosts != nil {
+		return c.hosts.Auth + "/v1/tokens"
+	}
+	return authURL
+}
+
+func (c *Client) appAPIBase() string {
+	if c.hosts != nil {
+		return c.hosts.App + "/v1"
+	}
+	return appAPIBaseURL
+}
+
+// bases are the client API base and its sibling fallback.
+func (c *Client) bases() (primary, fallback string) {
+	if c.hosts != nil {
+		return c.hosts.Client + "/v1", c.hosts.App + "/v1"
+	}
+	return defaultBaseURL, fallbackBaseURL
 }
 
 // New creates a Client.
@@ -116,4 +167,13 @@ func (c *Client) EnsureDeviceID(ctx context.Context) (string, error) {
 
 func (c *Client) requireUser(ctx context.Context) error {
 	return c.EnsureUserID(ctx)
+}
+
+// TokenExpiry is the expiry of the token the client holds, or zero before it
+// has loaded or requested one.
+func (c *Client) TokenExpiry() time.Time {
+	if c.token == "" {
+		return time.Time{}
+	}
+	return c.tokenExp
 }

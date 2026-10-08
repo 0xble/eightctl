@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"charm.land/log/v2"
+	"log/slog"
 	"github.com/99designs/keyring"
 )
 
@@ -83,12 +83,58 @@ func defaultOpenFileKeyring() (keyring.Keyring, error) {
 
 func openBackends(backends ...keyring.BackendType) (keyring.Keyring, error) {
 	home, _ := os.UserHomeDir()
-	return keyring.Open(keyring.Config{
+	dir := filepath.Join(home, ".config", "eightctl", "keyring")
+	ring, err := keyring.Open(keyring.Config{
 		ServiceName:      serviceName,
 		AllowedBackends:  backends,
-		FileDir:          filepath.Join(home, ".config", "eightctl", "keyring"),
+		FileDir:          dir,
 		FilePasswordFunc: filePassword,
 	})
+	if err != nil {
+		return nil, err
+	}
+	return existingDirKeyring{Keyring: ring, dir: dir}, nil
+}
+
+// existingDirKeyring keeps reads from creating the keyring directory. The
+// file backend creates it on every call, so a read or a preview in a fresh
+// HOME would otherwise leave an empty directory behind. Only Set creates it.
+type existingDirKeyring struct {
+	keyring.Keyring
+	dir string
+}
+
+func (k existingDirKeyring) absent() bool {
+	_, err := os.Stat(k.dir)
+	return errors.Is(err, fs.ErrNotExist)
+}
+
+func (k existingDirKeyring) Get(key string) (keyring.Item, error) {
+	if k.absent() {
+		return keyring.Item{}, keyring.ErrKeyNotFound
+	}
+	return k.Keyring.Get(key)
+}
+
+func (k existingDirKeyring) GetMetadata(key string) (keyring.Metadata, error) {
+	if k.absent() {
+		return keyring.Metadata{}, keyring.ErrKeyNotFound
+	}
+	return k.Keyring.GetMetadata(key)
+}
+
+func (k existingDirKeyring) Remove(key string) error {
+	if k.absent() {
+		return keyring.ErrKeyNotFound
+	}
+	return k.Keyring.Remove(key)
+}
+
+func (k existingDirKeyring) Keys() ([]string, error) {
+	if k.absent() {
+		return nil, nil
+	}
+	return k.Keyring.Keys()
 }
 
 func filePassword(_ string) (string, error) {
@@ -112,16 +158,16 @@ func Save(id Identity, token string, expiresAt time.Time, userID string) error {
 
 	primaryErr := trySetWith(openKeyring, item)
 	if primaryErr == nil {
-		log.Debug("keyring saved token")
+		slog.Debug("keyring saved token")
 		return nil
 	}
-	log.Debug("primary keyring set failed; falling back to file backend", "error", primaryErr)
+	slog.Debug("primary keyring set failed; falling back to file backend", "error", primaryErr)
 
 	if fileErr := trySetWith(openFileKeyring, item); fileErr != nil {
-		log.Debug("file keyring set failed", "error", fileErr)
+		slog.Debug("file keyring set failed", "error", fileErr)
 		return primaryErr
 	}
-	log.Debug("keyring saved token to file fallback")
+	slog.Debug("keyring saved token to file fallback")
 	return nil
 }
 

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/99designs/keyring"
-	"github.com/steipete/eightctl/internal/tokencache"
+	"github.com/0xble/eightsleep/internal/tokencache"
 )
 
 // Authentication writes tokens, so isolate both backends from persistent stores.

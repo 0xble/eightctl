@@ -16,7 +16,7 @@ func (c *Client) GetSmartSchedule(ctx context.Context) (map[string]any, error) {
 	if err := c.requireUser(ctx); err != nil {
 		return nil, err
 	}
-	u := fmt.Sprintf("%s/users/%s/temperature", appAPIBaseURL, c.UserID)
+	u := fmt.Sprintf("%s/users/%s/temperature", c.appAPIBase(), c.UserID)
 	var res struct {
 		Smart map[string]any `json:"smart"`
 	}

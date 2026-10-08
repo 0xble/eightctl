@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/99designs/keyring"
-	"github.com/steipete/eightctl/internal/tokencache"
+	"github.com/0xble/eightsleep/internal/tokencache"
 )
 
 func TestRetryCancellation(t *testing.T) {
