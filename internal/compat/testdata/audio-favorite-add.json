@@ -24,5 +24,15 @@
       "host": "client-api",
       "path": "/v1/users/u1/audio/tracks/favorites"
     }
+  ],
+  "writes": [
+    {
+      "method": "POST",
+      "host": "client-api",
+      "path": "/v1/users/u1/audio/tracks/favorites",
+      "body": {
+        "trackId": "t1"
+      }
+    }
   ]
 }

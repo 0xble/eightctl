@@ -25,5 +25,15 @@
       "host": "client-api",
       "path": "/v1/users/u1/travel/plans/p1"
     }
+  ],
+  "writes": [
+    {
+      "method": "PATCH",
+      "host": "client-api",
+      "path": "/v1/users/u1/travel/plans/p1",
+      "body": {
+        "date": "2026-10-09"
+      }
+    }
   ]
 }

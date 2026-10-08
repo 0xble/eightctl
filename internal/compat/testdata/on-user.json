@@ -39,5 +39,17 @@
       "host": "app-api",
       "path": "/v1/users/u2/temperature"
     }
+  ],
+  "writes": [
+    {
+      "method": "PUT",
+      "host": "app-api",
+      "path": "/v1/users/u2/temperature",
+      "body": {
+        "currentState": {
+          "type": "smart"
+        }
+      }
+    }
   ]
 }

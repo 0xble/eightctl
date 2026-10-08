@@ -23,5 +23,15 @@
       "host": "client-api",
       "path": "/v1/users/u1/base/presets"
     }
+  ],
+  "writes": [
+    {
+      "method": "POST",
+      "host": "client-api",
+      "path": "/v1/users/u1/base/presets",
+      "body": {
+        "name": "flat"
+      }
+    }
   ]
 }

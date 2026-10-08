@@ -30,5 +30,18 @@
       "host": "client-api",
       "path": "/v1/users/u1/base/angle"
     }
+  ],
+  "writes": [
+    {
+      "method": "POST",
+      "host": "client-api",
+      "path": "/v1/users/u1/base/angle",
+      "body": {
+        "deviceId": "d1",
+        "deviceOnline": true,
+        "legAngle": 5,
+        "torsoAngle": 10
+      }
+    }
   ]
 }

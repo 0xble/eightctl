@@ -30,5 +30,22 @@
       "host": "client-api",
       "path": "/v1/users/u1/alarms"
     }
+  ],
+  "writes": [
+    {
+      "method": "POST",
+      "host": "client-api",
+      "path": "/v1/users/u1/alarms",
+      "body": {
+        "daysOfWeek": [
+          0
+        ],
+        "enabled": false,
+        "id": "",
+        "sound": "chime",
+        "time": "06:00",
+        "vibration": false
+      }
+    }
   ]
 }

@@ -21,5 +21,17 @@
       "host": "client-api",
       "path": "/v1/users/u1/autopilotDetails/snoringMitigation"
     }
+  ],
+  "writes": [
+    {
+      "method": "PUT",
+      "host": "client-api",
+      "path": "/v1/users/u1/autopilotDetails/snoringMitigation",
+      "body": {
+        "snoringMitigation": {
+          "enabled": true
+        }
+      }
+    }
   ]
 }

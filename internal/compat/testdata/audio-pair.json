@@ -21,5 +21,13 @@
       "host": "client-api",
       "path": "/v1/devices/d1/audio/player/pair"
     }
+  ],
+  "writes": [
+    {
+      "method": "POST",
+      "host": "client-api",
+      "path": "/v1/devices/d1/audio/player/pair",
+      "body": {}
+    }
   ]
 }

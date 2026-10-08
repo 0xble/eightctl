@@ -23,5 +23,12 @@
       "host": "client-api",
       "path": "/v1/users/u1/travel/trips/trip1"
     }
+  ],
+  "writes": [
+    {
+      "method": "DELETE",
+      "host": "client-api",
+      "path": "/v1/users/u1/travel/trips/trip1"
+    }
   ]
 }

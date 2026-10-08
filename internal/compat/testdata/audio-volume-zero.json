@@ -23,5 +23,15 @@
       "host": "client-api",
       "path": "/v1/users/u1/audio/player/volume"
     }
+  ],
+  "writes": [
+    {
+      "method": "POST",
+      "host": "client-api",
+      "path": "/v1/users/u1/audio/player/volume",
+      "body": {
+        "level": 0
+      }
+    }
   ]
 }

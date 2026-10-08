@@ -26,5 +26,16 @@
       "host": "client-api",
       "path": "/v1/users/u1/alarms/a1"
     }
+  ],
+  "writes": [
+    {
+      "method": "PATCH",
+      "host": "client-api",
+      "path": "/v1/users/u1/alarms/a1",
+      "body": {
+        "enabled": false,
+        "time": "06:45"
+      }
+    }
   ]
 }

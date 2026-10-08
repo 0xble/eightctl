@@ -44,5 +44,27 @@
       "host": "app-api",
       "path": "/v1/users/u2/away-mode"
     }
+  ],
+  "writes": [
+    {
+      "method": "PUT",
+      "host": "app-api",
+      "path": "/v1/users/u1/away-mode",
+      "body": {
+        "awayPeriod": {
+          "end": "\u003crecent\u003e"
+        }
+      }
+    },
+    {
+      "method": "PUT",
+      "host": "app-api",
+      "path": "/v1/users/u2/away-mode",
+      "body": {
+        "awayPeriod": {
+          "end": "\u003crecent\u003e"
+        }
+      }
+    }
   ]
 }

@@ -46,5 +46,25 @@
       "path": "/v1/users/u2/temperature"
     }
   ],
+  "writes": [
+    {
+      "method": "PUT",
+      "host": "app-api",
+      "path": "/v1/users/u2/temperature",
+      "body": {
+        "currentState": {
+          "type": "smart"
+        }
+      }
+    },
+    {
+      "method": "PUT",
+      "host": "app-api",
+      "path": "/v1/users/u2/temperature",
+      "body": {
+        "currentLevel": -40
+      }
+    }
+  ],
   "change": "a negative level needs -- before it (temp --side right -- -40): the toolkit's parser reads -40 as flags"
 }

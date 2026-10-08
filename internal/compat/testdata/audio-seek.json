@@ -23,5 +23,15 @@
       "host": "client-api",
       "path": "/v1/users/u1/audio/player/seek"
     }
+  ],
+  "writes": [
+    {
+      "method": "POST",
+      "host": "client-api",
+      "path": "/v1/users/u1/audio/player/seek",
+      "body": {
+        "position": 5000
+      }
+    }
   ]
 }

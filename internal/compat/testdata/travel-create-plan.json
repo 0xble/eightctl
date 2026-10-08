@@ -25,5 +25,15 @@
       "host": "client-api",
       "path": "/v1/users/u1/travel/trips/trip1/plans"
     }
+  ],
+  "writes": [
+    {
+      "method": "POST",
+      "host": "client-api",
+      "path": "/v1/users/u1/travel/trips/trip1/plans",
+      "body": {
+        "name": "Adjust"
+      }
+    }
   ]
 }

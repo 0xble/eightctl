@@ -252,7 +252,9 @@ type golden struct {
 	StdoutText string              `json:"stdout_text,omitempty"`
 	Error      string              `json:"error,omitempty"`
 	Requests   []eightfake.Request `json:"requests"`
-	Change     string              `json:"change,omitempty"`
+	// Writes are the bodies of the applied changes.
+	Writes []eightfake.Write `json:"writes,omitempty"`
+	Change string            `json:"change,omitempty"`
 }
 
 func TestCallers(t *testing.T) {
@@ -303,6 +305,11 @@ func compare(t *testing.T, c tcase, want, got golden) {
 	}
 	if c.requests == "" && !reflect.DeepEqual(got.Requests, want.Requests) {
 		t.Errorf("provider requests differ:\n new %v\n old %v", got.Requests, want.Requests)
+	}
+	if c.requests == "" && !reflect.DeepEqual(roundTrip(got.Writes), roundTrip(want.Writes)) {
+		g, _ := json.Marshal(got.Writes)
+		w, _ := json.Marshal(want.Writes)
+		t.Errorf("write bodies differ:\n new %s\n old %s", g, w)
 	}
 	if c.change != "" {
 		return
@@ -454,8 +461,15 @@ func result(c tcase, code int, stdout, errLine string, fake *eightfake.Server, h
 	for i := range reqs {
 		reqs[i].Query = clean(reqs[i].Query)
 	}
+	writes, _ := fake.Snapshot().([]eightfake.Write)
+	if len(writes) == 0 {
+		writes = nil
+	}
+	for i := range writes {
+		writes[i].Body = normalise(writes[i].Body, clean)
+	}
 	g := golden{Caller: c.caller, Program: c.old, Args: c.args, NewArgs: c.newArgs, Exit: code, Requests: reqs,
-		Change: c.change, Error: clean(errLine)}
+		Writes: writes, Change: c.change, Error: clean(errLine)}
 	if g.Program == "" {
 		g.Program = eightctl
 	}

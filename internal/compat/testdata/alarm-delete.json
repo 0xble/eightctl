@@ -23,5 +23,12 @@
       "host": "client-api",
       "path": "/v1/users/u1/alarms/a2"
     }
+  ],
+  "writes": [
+    {
+      "method": "DELETE",
+      "host": "client-api",
+      "path": "/v1/users/u1/alarms/a2"
+    }
   ]
 }

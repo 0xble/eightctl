@@ -21,5 +21,13 @@
       "host": "client-api",
       "path": "/v1/devices/d1/vibration-test"
     }
+  ],
+  "writes": [
+    {
+      "method": "POST",
+      "host": "client-api",
+      "path": "/v1/devices/d1/vibration-test",
+      "body": {}
+    }
   ]
 }

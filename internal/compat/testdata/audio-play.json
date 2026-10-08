@@ -23,5 +23,16 @@
       "host": "client-api",
       "path": "/v1/users/u1/audio/player"
     }
+  ],
+  "writes": [
+    {
+      "method": "POST",
+      "host": "client-api",
+      "path": "/v1/users/u1/audio/player",
+      "body": {
+        "action": "play",
+        "trackId": "t1"
+      }
+    }
   ]
 }

@@ -25,5 +25,16 @@
       "host": "client-api",
       "path": "/v1/users/u1/travel/trips"
     }
+  ],
+  "writes": [
+    {
+      "method": "POST",
+      "host": "client-api",
+      "path": "/v1/users/u1/travel/trips",
+      "body": {
+        "destination": "Tokyo",
+        "timezone": "Asia/Tokyo"
+      }
+    }
   ]
 }

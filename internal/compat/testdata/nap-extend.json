@@ -22,5 +22,13 @@
       "host": "client-api",
       "path": "/v1/users/u1/temperature/nap-mode/extend"
     }
+  ],
+  "writes": [
+    {
+      "method": "POST",
+      "host": "client-api",
+      "path": "/v1/users/u1/temperature/nap-mode/extend",
+      "body": {}
+    }
   ]
 }

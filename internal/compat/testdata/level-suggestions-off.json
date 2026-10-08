@@ -22,5 +22,15 @@
       "host": "client-api",
       "path": "/v1/users/u1/level-suggestions-mode"
     }
+  ],
+  "writes": [
+    {
+      "method": "PUT",
+      "host": "client-api",
+      "path": "/v1/users/u1/level-suggestions-mode",
+      "body": {
+        "enabled": false
+      }
+    }
   ]
 }

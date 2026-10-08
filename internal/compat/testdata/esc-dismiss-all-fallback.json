@@ -38,5 +38,19 @@
       "host": "app-api",
       "path": "/v1/users/u1/alarms/a1/dismiss"
     }
+  ],
+  "writes": [
+    {
+      "method": "PUT",
+      "host": "app-api",
+      "path": "/v1/users/u1/alarms/active/dismiss-all",
+      "body": {}
+    },
+    {
+      "method": "POST",
+      "host": "app-api",
+      "path": "/v1/users/u1/alarms/a1/dismiss",
+      "body": {}
+    }
   ]
 }
