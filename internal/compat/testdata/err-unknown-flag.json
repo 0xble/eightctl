@@ -1,0 +1,11 @@
+{
+  "program": "eightctl",
+  "args": [
+    "status",
+    "--definitely-not-a-flag"
+  ],
+  "exit": 1,
+  "error": "unknown flag: --definitely-not-a-flag",
+  "requests": [],
+  "change": "a parse error prints one error line (C2)"
+}

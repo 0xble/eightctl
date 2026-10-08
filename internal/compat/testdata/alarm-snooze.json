@@ -1,0 +1,26 @@
+{
+  "program": "eightctl",
+  "args": [
+    "alarm",
+    "snooze",
+    "a1"
+  ],
+  "exit": 0,
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "POST",
+      "host": "client-api",
+      "path": "/v1/users/u1/alarms/a1/snooze"
+    }
+  ]
+}

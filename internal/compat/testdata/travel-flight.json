@@ -1,0 +1,32 @@
+{
+  "program": "eightctl",
+  "args": [
+    "travel",
+    "flight-status",
+    "--flight",
+    "UA1",
+    "--output",
+    "json"
+  ],
+  "exit": 0,
+  "stdout_json": [
+    {
+      "flight": {
+        "fixture": "client-api/v1/travel/flight-status"
+      }
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/travel/flight-status",
+      "query": "flightNumber=UA1"
+    }
+  ]
+}

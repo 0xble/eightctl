@@ -1,0 +1,11 @@
+{
+  "program": "eightctl",
+  "args": [
+    "alarm",
+    "update",
+    "a1"
+  ],
+  "exit": 1,
+  "error": "no fields to update",
+  "requests": []
+}

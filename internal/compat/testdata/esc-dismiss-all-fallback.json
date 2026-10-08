@@ -1,0 +1,42 @@
+{
+  "program": "eightsleepctl",
+  "args": [
+    "alarm",
+    "dismiss-all"
+  ],
+  "new_args": [
+    "alarm",
+    "dismiss-all",
+    "--json"
+  ],
+  "exit": 0,
+  "stdout_json": {
+    "dismissed_alarm_ids": [
+      "a1"
+    ],
+    "method": "alarms/{id}/dismiss (POST)",
+    "ok": true
+  },
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "PUT",
+      "host": "app-api",
+      "path": "/v1/users/u1/alarms/active/dismiss-all"
+    },
+    {
+      "method": "GET",
+      "host": "app-api",
+      "path": "/v1/users/u1/alarms/active"
+    },
+    {
+      "method": "POST",
+      "host": "app-api",
+      "path": "/v1/users/u1/alarms/a1/dismiss"
+    }
+  ]
+}

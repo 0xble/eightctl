@@ -1,0 +1,27 @@
+{
+  "program": "eightctl",
+  "args": [
+    "alarm",
+    "list"
+  ],
+  "exit": 0,
+  "stdout_text": "id  time   enabled  days         vibration       sound\na1  07:00  true     [1 2 3 4 5]  {true rise 50}  0x654bf773a220\na2  09:30  false    [0 6]        {false  0}      \u003cnil\u003e\n",
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u1/alarms"
+    }
+  ],
+  "change": "a set sound prints its ID; eightctl printed a pointer address"
+}

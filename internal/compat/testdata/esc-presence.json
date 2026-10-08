@@ -1,0 +1,60 @@
+{
+  "program": "eightsleepctl",
+  "args": [
+    "presence"
+  ],
+  "new_args": [
+    "presence",
+    "detail",
+    "--json"
+  ],
+  "exit": 0,
+  "stdout_json": {
+    "absent_window_seconds": 7200,
+    "age_seconds": "\u003cage\u003e",
+    "device": {
+      "blanket": {
+        "connectors": [
+          "left",
+          "right"
+        ],
+        "isConnected": true
+      },
+      "id": "d1",
+      "lastHeard": "2026-10-05T07:00:00Z",
+      "online": true
+    },
+    "last_signal": {
+      "signal": "tempBedC",
+      "timestamp": "\u003ctime\u003e",
+      "value": 29.5
+    },
+    "present": true,
+    "present_window_seconds": 1200,
+    "reason": "fresh_timeseries"
+  },
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u1/current-device"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/devices/d1",
+      "query": "filter=sensorInfo,online,lastHeard,leftUserId,rightUserId"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u1/trends",
+      "query": "from=\u003cyesterday\u003e\u0026include-all-sessions=true\u0026include-main=false\u0026model-version=v2\u0026to=\u003ctoday\u003e\u0026tz=UTC"
+    }
+  ]
+}

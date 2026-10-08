@@ -1,0 +1,10 @@
+{
+  "program": "eightctl",
+  "args": [
+    "definitely-not-a-command"
+  ],
+  "exit": 1,
+  "error": "unknown command \"definitely-not-a-command\" for \"eightctl\"",
+  "requests": [],
+  "change": "a parse error prints one error line (C2)"
+}

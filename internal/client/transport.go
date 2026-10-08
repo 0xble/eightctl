@@ -7,13 +7,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
 	"github.com/0xble/eightsleep/internal/tokencache"
-	"log/slog"
 )
 
 const maxRetries = 3

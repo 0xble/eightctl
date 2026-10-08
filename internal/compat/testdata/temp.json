@@ -1,0 +1,57 @@
+{
+  "program": "eightctl",
+  "args": [
+    "temp",
+    "20"
+  ],
+  "exit": 0,
+  "stdout_text": "temperature set (level 20) for sides left, right\n",
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/devices/d1",
+      "query": "filter=leftUserId,rightUserId,awaySides"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u1"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u2"
+    },
+    {
+      "method": "PUT",
+      "host": "app-api",
+      "path": "/v1/users/u1/temperature"
+    },
+    {
+      "method": "PUT",
+      "host": "app-api",
+      "path": "/v1/users/u1/temperature"
+    },
+    {
+      "method": "PUT",
+      "host": "app-api",
+      "path": "/v1/users/u2/temperature"
+    },
+    {
+      "method": "PUT",
+      "host": "app-api",
+      "path": "/v1/users/u2/temperature"
+    }
+  ]
+}

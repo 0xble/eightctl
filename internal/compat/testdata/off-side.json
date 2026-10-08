@@ -1,0 +1,43 @@
+{
+  "program": "eightctl",
+  "args": [
+    "off",
+    "--side",
+    "left"
+  ],
+  "exit": 0,
+  "stdout_text": "pod turned off for side left\n",
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/devices/d1",
+      "query": "filter=leftUserId,rightUserId,awaySides"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u1"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u2"
+    },
+    {
+      "method": "PUT",
+      "host": "app-api",
+      "path": "/v1/users/u1/temperature"
+    }
+  ]
+}

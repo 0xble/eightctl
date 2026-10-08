@@ -1,0 +1,11 @@
+{
+  "program": "eightctl",
+  "args": [
+    "audio",
+    "favorites",
+    "add"
+  ],
+  "exit": 1,
+  "error": "--track required",
+  "requests": []
+}

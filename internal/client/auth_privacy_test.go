@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/0xble/eightsleep/internal/tokencache"
 	"github.com/99designs/keyring"
-	"log/slog"
 )
 
 func TestAmbiguousCachedAccountsDoNotAuthenticate(t *testing.T) {

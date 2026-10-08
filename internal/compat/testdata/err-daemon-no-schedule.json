@@ -1,0 +1,10 @@
+{
+  "program": "eightctl",
+  "args": [
+    "daemon",
+    "--dry-run"
+  ],
+  "exit": 1,
+  "error": "no schedule entries found",
+  "requests": []
+}

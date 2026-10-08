@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
 	"github.com/0xble/eightsleep/internal/tokencache"
-	"log/slog"
 )
 
 // Authenticate fetches a bearer token via the OAuth password-grant endpoint.

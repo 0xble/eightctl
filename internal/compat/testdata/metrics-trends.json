@@ -1,0 +1,146 @@
+{
+  "program": "eightctl",
+  "args": [
+    "metrics",
+    "trends",
+    "--from",
+    "2026-10-01",
+    "--to",
+    "2026-10-02",
+    "--output",
+    "json"
+  ],
+  "exit": 0,
+  "stdout_json": [
+    {
+      "trends": {
+        "days": [
+          {
+            "day": "2026-10-01",
+            "heartRate": 58.25,
+            "latencyAsleepSeconds": 600,
+            "latencyOutSeconds": 300,
+            "presenceStart": "2026-10-01T06:00:00Z",
+            "respiratoryRate": 14.5,
+            "score": 81,
+            "sessions": [
+              {
+                "timeseries": {
+                  "heartRate": [
+                    [
+                      "\u003crecent\u003e",
+                      57
+                    ],
+                    [
+                      "\u003crecent\u003e",
+                      58
+                    ]
+                  ],
+                  "hrv": [
+                    [
+                      "\u003crecent\u003e",
+                      40
+                    ]
+                  ],
+                  "respiratoryRate": [
+                    [
+                      "\u003crecent\u003e",
+                      14
+                    ]
+                  ],
+                  "tempBedC": [
+                    [
+                      "\u003crecent\u003e",
+                      29.5
+                    ]
+                  ]
+                }
+              }
+            ],
+            "sleepDurationSeconds": 27001,
+            "sleepQualityScore": {
+              "hrv": {
+                "score": 71
+              },
+              "respiratoryRate": {
+                "score": 90
+              }
+            },
+            "tnt": 12
+          },
+          {
+            "day": "2026-10-02",
+            "heartRate": 58.25,
+            "latencyAsleepSeconds": 600,
+            "latencyOutSeconds": 300,
+            "presenceStart": "2026-10-02T06:00:00Z",
+            "respiratoryRate": 14.5,
+            "score": 82,
+            "sessions": [
+              {
+                "timeseries": {
+                  "heartRate": [
+                    [
+                      "\u003crecent\u003e",
+                      57
+                    ],
+                    [
+                      "\u003crecent\u003e",
+                      58
+                    ]
+                  ],
+                  "hrv": [
+                    [
+                      "\u003crecent\u003e",
+                      40
+                    ]
+                  ],
+                  "respiratoryRate": [
+                    [
+                      "\u003crecent\u003e",
+                      14
+                    ]
+                  ],
+                  "tempBedC": [
+                    [
+                      "\u003crecent\u003e",
+                      29.5
+                    ]
+                  ]
+                }
+              }
+            ],
+            "sleepDurationSeconds": 27002,
+            "sleepQualityScore": {
+              "hrv": {
+                "score": 71
+              },
+              "respiratoryRate": {
+                "score": 90
+              }
+            },
+            "tnt": 12
+          }
+        ]
+      }
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u1/trends",
+      "query": "from=2026-10-01\u0026include-all-sessions=true\u0026include-main=false\u0026model-version=v2\u0026to=2026-10-02\u0026tz=UTC"
+    }
+  ]
+}

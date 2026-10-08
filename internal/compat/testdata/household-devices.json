@@ -1,0 +1,36 @@
+{
+  "program": "eightctl",
+  "args": [
+    "household",
+    "devices",
+    "--output",
+    "json"
+  ],
+  "exit": 0,
+  "stdout_json": [
+    {
+      "devices": [
+        {
+          "deviceId": "d1"
+        }
+      ]
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "GET",
+      "host": "app-api",
+      "path": "/v1/household/users/u1/summary"
+    }
+  ]
+}

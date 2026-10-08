@@ -1,0 +1,10 @@
+{
+  "program": "eightctl",
+  "args": [
+    "temp"
+  ],
+  "exit": 1,
+  "error": "requires exactly 1 temperature value",
+  "requests": [],
+  "change": "a parse error prints one error line (C2)"
+}

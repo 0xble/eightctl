@@ -1,0 +1,32 @@
+{
+  "program": "eightctl",
+  "args": [
+    "travel",
+    "airport-search",
+    "--query",
+    "SFO",
+    "--output",
+    "json"
+  ],
+  "exit": 0,
+  "stdout_json": [
+    {
+      "airports": {
+        "fixture": "client-api/v1/travel/airport-search"
+      }
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/travel/airport-search",
+      "query": "query=SFO"
+    }
+  ]
+}

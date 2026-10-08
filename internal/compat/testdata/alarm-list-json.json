@@ -1,0 +1,58 @@
+{
+  "program": "eightctl",
+  "args": [
+    "alarm",
+    "list",
+    "--output",
+    "json"
+  ],
+  "exit": 0,
+  "stdout_json": [
+    {
+      "days": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "enabled": true,
+      "id": "a1",
+      "sound": "chime",
+      "time": "07:00",
+      "vibration": {
+        "enabled": true,
+        "pattern": "rise",
+        "powerLevel": 50
+      }
+    },
+    {
+      "days": [
+        0,
+        6
+      ],
+      "enabled": false,
+      "id": "a2",
+      "sound": null,
+      "time": "09:30",
+      "vibration": false
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u1/alarms"
+    }
+  ]
+}

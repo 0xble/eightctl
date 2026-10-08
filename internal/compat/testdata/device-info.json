@@ -1,0 +1,51 @@
+{
+  "program": "eightctl",
+  "args": [
+    "device",
+    "info",
+    "--output",
+    "json"
+  ],
+  "exit": 0,
+  "stdout_json": [
+    {
+      "info": {
+        "result": {
+          "awaySides": {},
+          "deviceId": "d1",
+          "lastHeard": "2026-10-05T07:00:00Z",
+          "leftUserId": "u1",
+          "online": true,
+          "ownerId": "u1",
+          "rightUserId": "u2",
+          "sensorInfo": {
+            "blanket": {
+              "connectors": [
+                "left",
+                "right"
+              ],
+              "isConnected": true
+            }
+          }
+        }
+      }
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/devices/d1"
+    }
+  ]
+}

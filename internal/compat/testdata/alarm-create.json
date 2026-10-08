@@ -1,0 +1,30 @@
+{
+  "program": "eightctl",
+  "args": [
+    "alarm",
+    "create",
+    "--time",
+    "07:30",
+    "--days",
+    "1,2,3"
+  ],
+  "exit": 0,
+  "stdout_text": "created alarm a3\n",
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "POST",
+      "host": "client-api",
+      "path": "/v1/users/u1/alarms"
+    }
+  ]
+}

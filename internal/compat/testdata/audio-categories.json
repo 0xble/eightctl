@@ -1,0 +1,29 @@
+{
+  "program": "eightctl",
+  "args": [
+    "audio",
+    "categories",
+    "--output",
+    "json"
+  ],
+  "exit": 0,
+  "stdout_json": [
+    {
+      "data": {
+        "fixture": "client-api/v1/audio/categories"
+      }
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/audio/categories"
+    }
+  ]
+}

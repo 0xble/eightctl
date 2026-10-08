@@ -1,0 +1,27 @@
+{
+  "program": "eightctl",
+  "args": [
+    "alarm",
+    "delete",
+    "a2"
+  ],
+  "exit": 0,
+  "stdout_text": "deleted\n",
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "DELETE",
+      "host": "client-api",
+      "path": "/v1/users/u1/alarms/a2"
+    }
+  ]
+}

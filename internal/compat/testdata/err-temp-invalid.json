@@ -1,0 +1,10 @@
+{
+  "program": "eightctl",
+  "args": [
+    "temp",
+    "warm"
+  ],
+  "exit": 1,
+  "error": "temperature must end with F/C or be an integer level",
+  "requests": []
+}

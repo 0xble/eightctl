@@ -1,0 +1,10 @@
+{
+  "program": "eightctl",
+  "args": [
+    "travel",
+    "create-trip"
+  ],
+  "exit": 1,
+  "error": "provide at least --destination or --start-date/--end-date",
+  "requests": []
+}

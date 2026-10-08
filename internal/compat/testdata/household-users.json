@@ -1,0 +1,58 @@
+{
+  "program": "eightctl",
+  "args": [
+    "household",
+    "users",
+    "--output",
+    "json"
+  ],
+  "exit": 0,
+  "stdout_json": [
+    {
+      "users": [
+        {
+          "email": "ada@example.invalid",
+          "firstName": "Ada",
+          "lastName": "Lovelace",
+          "side": "left",
+          "userId": "u1"
+        },
+        {
+          "email": "grace@example.invalid",
+          "firstName": "Grace",
+          "lastName": "Hopper",
+          "side": "right",
+          "userId": "u2"
+        }
+      ]
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/devices/d1",
+      "query": "filter=leftUserId,rightUserId,awaySides"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u1"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u2"
+    }
+  ]
+}

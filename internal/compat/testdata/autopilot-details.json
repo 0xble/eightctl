@@ -1,0 +1,34 @@
+{
+  "program": "eightctl",
+  "args": [
+    "autopilot",
+    "details",
+    "--output",
+    "json"
+  ],
+  "exit": 0,
+  "stdout_json": [
+    {
+      "details": {
+        "fixture": "client-api/v1/users/u1/autopilotDetails"
+      }
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u1/autopilotDetails"
+    }
+  ]
+}

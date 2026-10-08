@@ -1,0 +1,11 @@
+{
+  "program": "eightctl",
+  "args": [
+    "presence",
+    "--from",
+    "2026-13-01"
+  ],
+  "exit": 1,
+  "error": "invalid --from date \"2026-13-01\": parsing time \"2026-13-01\": month out of range",
+  "requests": []
+}

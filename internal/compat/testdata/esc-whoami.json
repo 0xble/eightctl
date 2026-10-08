@@ -1,0 +1,23 @@
+{
+  "program": "eightsleepctl",
+  "args": [
+    "whoami"
+  ],
+  "new_args": [
+    "whoami",
+    "--json"
+  ],
+  "exit": 0,
+  "stdout_json": {
+    "token_expires_at": "\u003ctime\u003e",
+    "user_id": "u1"
+  },
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    }
+  ],
+  "change": "token_expires_at is present only when a token is cached"
+}

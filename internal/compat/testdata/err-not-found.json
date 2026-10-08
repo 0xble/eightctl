@@ -1,0 +1,33 @@
+{
+  "program": "eightctl",
+  "args": [
+    "metrics",
+    "intervals",
+    "--id",
+    "s1"
+  ],
+  "exit": 1,
+  "error": "api GET \u003cfake\u003e/app-api/v1/users/u1/intervals/s1: status 404: {\"error\":\"fixture 404\"}",
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u1/intervals/s1"
+    },
+    {
+      "method": "GET",
+      "host": "app-api",
+      "path": "/v1/users/u1/intervals/s1"
+    }
+  ]
+}

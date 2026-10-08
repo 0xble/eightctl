@@ -3,11 +3,10 @@ package client
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
-
-	"log/slog"
 )
 
 // SleepDay represents aggregated sleep metrics for a day.
