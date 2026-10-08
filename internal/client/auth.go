@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"log/slog"
 	"github.com/0xble/eightsleep/internal/tokencache"
+	"log/slog"
 )
 
 // Authenticate fetches a bearer token via the OAuth password-grant endpoint.

@@ -57,7 +57,9 @@ type fetchFunc = func(ctx context.Context, cl *client.Client, s config.Settings,
 
 // simple adapts a client call without parameters.
 func simple(get func(context.Context, *client.Client) (any, error)) fetchFunc {
-	return func(ctx context.Context, cl *client.Client, _ config.Settings, _ NoInput) (any, error) { return get(ctx, cl) }
+	return func(ctx context.Context, cl *client.Client, _ config.Settings, _ NoInput) (any, error) {
+		return get(ctx, cl)
+	}
 }
 
 // into adapts a client call that decodes into a value.

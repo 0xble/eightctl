@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"log/slog"
 	"github.com/0xble/eightsleep/internal/tokencache"
+	"log/slog"
 )
 
 const maxRetries = 3

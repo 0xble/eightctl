@@ -12,8 +12,8 @@ import (
 	"syscall"
 	"time"
 
-	"log/slog"
 	"github.com/99designs/keyring"
+	"log/slog"
 )
 
 const (

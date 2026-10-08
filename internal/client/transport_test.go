@@ -10,8 +10,8 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/99designs/keyring"
 	"github.com/0xble/eightsleep/internal/tokencache"
+	"github.com/99designs/keyring"
 )
 
 func TestRetryCancellation(t *testing.T) {

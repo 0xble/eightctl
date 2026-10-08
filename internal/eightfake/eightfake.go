@@ -337,7 +337,7 @@ func (s *Server) trends(q url.Values) map[string]any {
 		days = append(days, map[string]any{
 			"day": d.Format("2006-01-02"), "score": 80 + n, "tnt": 12, "respiratoryRate": 14.5, "heartRate": 58.25,
 			"latencyAsleepSeconds": 600, "latencyOutSeconds": 300, "sleepDurationSeconds": 27000 + n,
-			"presenceStart": d.Format("2006-01-02") + "T06:00:00Z",
+			"presenceStart":     d.Format("2006-01-02") + "T06:00:00Z",
 			"sleepQualityScore": map[string]any{"hrv": map[string]any{"score": 71}, "respiratoryRate": map[string]any{"score": 90}},
 			"sessions": []any{map[string]any{"timeseries": map[string]any{
 				"heartRate":       []any{sample(10*time.Minute, 57), sample(0, 58)},

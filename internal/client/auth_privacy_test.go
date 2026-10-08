@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"log/slog"
-	"github.com/99designs/keyring"
 	"github.com/0xble/eightsleep/internal/tokencache"
+	"github.com/99designs/keyring"
+	"log/slog"
 )
 
 func TestAmbiguousCachedAccountsDoNotAuthenticate(t *testing.T) {

@@ -126,32 +126,46 @@ func required(flag string) func(string) error {
 func registerActions(reg *op.Registry, b *Backend) {
 	write(reg, b, "audio.play", "", "Play audio", op.Write, nil,
 		func(in PlayInput) string { return "play audio " + in.Track },
-		func(ctx context.Context, cl *client.Client, in PlayInput) error { return cl.Audio().Play(ctx, in.Track) })
+		func(ctx context.Context, cl *client.Client, in PlayInput) error {
+			return cl.Audio().Play(ctx, in.Track)
+		})
 	action(reg, b, "audio.pause", "", "Pause audio", "pause audio",
 		func(ctx context.Context, cl *client.Client, _ NoInput) error { return cl.Audio().Pause(ctx) })
 	write(reg, b, "audio.seek", "", "Seek the audio player", op.Write, nil,
 		func(in SeekInput) string { return fmt.Sprintf("seek audio to %d ms", in.Position) },
-		func(ctx context.Context, cl *client.Client, in SeekInput) error { return cl.Audio().Seek(ctx, in.Position) })
+		func(ctx context.Context, cl *client.Client, in SeekInput) error {
+			return cl.Audio().Seek(ctx, in.Position)
+		})
 	write(reg, b, "audio.volume", "", "Set the audio volume", op.Write, nil,
 		func(in VolumeInput) string { return fmt.Sprintf("set audio volume to %d", in.level()) },
-		func(ctx context.Context, cl *client.Client, in VolumeInput) error { return cl.Audio().Volume(ctx, in.level()) })
+		func(ctx context.Context, cl *client.Client, in VolumeInput) error {
+			return cl.Audio().Volume(ctx, in.level())
+		})
 	action(reg, b, "audio.pair", "", "Pair the audio player", "pair the audio player",
 		func(ctx context.Context, cl *client.Client, _ NoInput) error { return cl.Audio().Pair(ctx) })
 	write(reg, b, "audio.favorites.add", "", "Add a favorite track", op.Write,
 		func(in TrackInput) error { return required("track")(in.Track) },
 		func(in TrackInput) string { return "add favorite track " + in.Track },
-		func(ctx context.Context, cl *client.Client, in TrackInput) error { return cl.Audio().AddFavorite(ctx, in.Track) })
+		func(ctx context.Context, cl *client.Client, in TrackInput) error {
+			return cl.Audio().AddFavorite(ctx, in.Track)
+		})
 	write(reg, b, "audio.favorites.remove", "", "Remove a favorite track", op.Write,
 		func(in TrackInput) error { return required("track")(in.Track) },
 		func(in TrackInput) string { return "remove favorite track " + in.Track },
-		func(ctx context.Context, cl *client.Client, in TrackInput) error { return cl.Audio().RemoveFavorite(ctx, in.Track) })
+		func(ctx context.Context, cl *client.Client, in TrackInput) error {
+			return cl.Audio().RemoveFavorite(ctx, in.Track)
+		})
 
 	write(reg, b, "base.angle", "", "Set the base angles", op.Write, nil,
 		func(in AngleInput) string { return fmt.Sprintf("set base angles head %d, foot %d", in.Head, in.Foot) },
-		func(ctx context.Context, cl *client.Client, in AngleInput) error { return cl.Base().SetAngle(ctx, in.Head, in.Foot) })
+		func(ctx context.Context, cl *client.Client, in AngleInput) error {
+			return cl.Base().SetAngle(ctx, in.Head, in.Foot)
+		})
 	write(reg, b, "base.preset_run", "base preset-run", "Run a base preset", op.Write, nil,
 		func(in PresetInput) string { return "run base preset " + in.Name },
-		func(ctx context.Context, cl *client.Client, in PresetInput) error { return cl.Base().RunPreset(ctx, in.Name) })
+		func(ctx context.Context, cl *client.Client, in PresetInput) error {
+			return cl.Base().RunPreset(ctx, in.Name)
+		})
 	action(reg, b, "base.test", "", "Run a base vibration test", "run a base vibration test",
 		func(ctx context.Context, cl *client.Client, _ NoInput) error { return cl.Base().VibrationTest(ctx) })
 
@@ -174,11 +188,15 @@ func registerActions(reg *op.Registry, b *Backend) {
 			return nil
 		},
 		func(in CreateTripInput) string { return "create a trip to " + in.Destination },
-		func(ctx context.Context, cl *client.Client, in CreateTripInput) error { return cl.Travel().CreateTrip(ctx, in.body()) })
+		func(ctx context.Context, cl *client.Client, in CreateTripInput) error {
+			return cl.Travel().CreateTrip(ctx, in.body())
+		})
 	write(reg, b, "travel.delete_trip", "travel delete-trip", "Delete a trip", op.Destructive,
 		func(in TripInput) error { return required("trip")(in.Trip) },
 		func(in TripInput) string { return "delete trip " + in.Trip },
-		func(ctx context.Context, cl *client.Client, in TripInput) error { return cl.Travel().DeleteTrip(ctx, in.Trip) })
+		func(ctx context.Context, cl *client.Client, in TripInput) error {
+			return cl.Travel().DeleteTrip(ctx, in.Trip)
+		})
 	write(reg, b, "travel.create_plan", "travel create-plan", "Add a plan to a trip", op.Write,
 		func(in CreatePlanInput) error { return required("trip")(in.Trip) },
 		func(in CreatePlanInput) string { return "add a plan to trip " + in.Trip },

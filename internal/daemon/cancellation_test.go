@@ -7,9 +7,9 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/99designs/keyring"
 	"github.com/0xble/eightsleep/internal/client"
 	"github.com/0xble/eightsleep/internal/tokencache"
+	"github.com/99designs/keyring"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
