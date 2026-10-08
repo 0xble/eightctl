@@ -7,6 +7,8 @@ Entries before the rename are the history of the `0xble/eightctl` fork of
 
 ## [Unreleased]
 
+## 0.3.0 - 2026-10-08
+
 ### Changed
 
 - Renamed to `eightsleep` (module `github.com/0xble/eightsleep`) and rewritten
