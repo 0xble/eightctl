@@ -99,6 +99,13 @@ limited, 7 timeout.
 
 ## Development
 
+Releases are cut from the fleet control plane, not from a workflow in this
+repository: tag the release commit, then run `tools/bin/release eightsleep`
+from dotfiles. It runs this repository's `.goreleaser.yml`, publishes the
+GitHub release with both binaries and verifies the archives against
+`checksums.txt`. `goreleaser build --snapshot --clean` builds the same
+archives locally without publishing.
+
 ```sh
 ./bin/ci preflight   # quick local checks
 ./bin/check          # format, vet, lint, race tests, build, scripts
