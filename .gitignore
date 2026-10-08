@@ -34,5 +34,6 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
-eightctl
+/eightctl
+/eightsleep
 .worktrees/
