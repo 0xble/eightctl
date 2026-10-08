@@ -216,22 +216,85 @@ No caller parses `--help`, `Usage:`, version strings, error text or exit codes.
 
 ## Caller Compatibility Test
 
-`internal/compat` holds one case per command shape above, recorded from the old
-`eightctl` and from the old `eightsleepctl` against the same fake, plus the
-error paths. See the PR for the result.
+`internal/compat` holds 135 cases: every `eightctl` command shape in the table
+above (each row command in at least one `--output` format, every write, the
+household targeting variants, provider fallbacks and the error paths) and
+every `eightsleepctl` command. No external caller exists, so the cases cover
+the surface rather than named invocations.
+
+Each golden was recorded from the old program against `internal/eightfake`, an
+`httptest` fake of the client API, the app API and the token endpoint, and
+holds the exit code, the stdout JSON or text, the error message, the exact
+provider requests (method, host, path, sorted query) and the bodies of the
+applied writes. The fake's address, the sandbox path, today's and yesterday's
+dates, signal ages and clock-derived timestamps are masked, and every program
+runs with `TZ=UTC` in a private `HOME`. The test runs the new CLI in-process
+through `cli.Run` with the same arguments, environment and fake, and requires
+all of them to match, except where a case documents a change.
+
+`internal/compat/record.sh [ref] [script]` re-records the goldens. It exports
+`ref` (default `a2b8291`) and copies the script, and changes exactly one thing
+in each: the Eight Sleep hosts read `EIGHTSLEEP_COMPAT_BASE`.
+
+Result on the rewrite: 135 of 135 pass. 20 cases expect a family exit code
+instead of the old 1 or 0 (C1) and still compare everything else. 19 carry a
+documented difference: 9 compare the exit code, requests and write bodies but
+not the output (version string, parse-error text, the alarm table's sound
+column, `--fields`, the dry-run fallback text), and 10 skip the requests: 6
+validate before reading credentials (C12), and `alarm dismiss-all` (C11),
+`temp -40` (C9), and the script's `alarm list` and `whoami` (C15) use
+another route.
+
+## Escape Hatches
+
+An escape hatch is a command that needed hand-written code beyond the
+registry: custom kong wiring, rendering beyond the render hooks, or a path
+around toolkit dispatch.
+
+| Command | Why |
+| --- | --- |
+| `logout` | clears the local credential cache, so it stays CLI-only |
+| `daemon` | runs until signalled, reading the config file's schedule, so it cannot be a request/response operation |
+
+2 of 86 commands (2.3%). All 84 others are registry operations with render
+hooks only. `--output table|json|csv` is a tool root flag that the render
+hooks read, as in triggerdev.
+
+## Toolkit Gaps
+
+Found here, general to any tool, not worked around by bypassing toolkit:
+
+| # | Gap | Effect here |
+| --- | --- | --- |
+| G1 | kong scans a positional that starts with `-` and a digit as short flags. Repro: an operation with input `Value string \`json:"value" arg:""\``, CLI `temp`; `tool temp -40` fails with `unknown flag -4`. kong's `passthrough` does not help: it splits `-40` into `-4` and a stray `0` | `temp -40` needs `temp -- -40` (C9). Fix belongs in toolkit, for example treating a negative number as a positional when the leaf still has an unfilled positional |
+| G2 | The CLI rebuilds the input by marshalling the parsed struct to JSON and decoding it over `NewInput()`, so a field with `omitempty` and a kong `default` loses an explicit zero: `--enabled=false` with `default:"true"` arrives as `true`, `--level 0` with `default:"50"` as `50`. HTTP and MCP are unaffected | `autopilot ... --enabled` and `audio volume --level` use pointer fields with the default applied in the handler. Caught by conformance; the goldens prove the old bodies |
+| G3 | Render hooks cannot see the toolkit's `--fields`, so a tool cannot honour it in human output | `--fields` no longer filters `--output table/csv/json` (C4) |
 
 ## Intentional Changes
 
-See the PR body for the final list. Planned:
+Every other inventoried command, flag, default, output and exit code is
+unchanged and covered by the caller test.
 
 | # | Change | Why | Affected callers |
 | --- | --- | --- | --- |
-| C1 | Exit codes follow the family table (usage 2, not found 3, auth 5, rate 6, timeout 7) instead of 1 for every failure. A bare invocation exits 2 instead of printing help with 0 | family contract, which the fleet contracts check | none |
-| C2 | Failure stderr is one `error: <message>` line (or the JSON envelope) instead of cobra usage plus a `FATAL` log line | toolkit CLI | none |
-| C3 | New `--json` and `--agent`: the operation's result. For row commands it is the array `--output json` printed | toolkit builtin | additive |
-| C4 | `--fields` filters `--json`/`--agent` output only; it no longer filters or reorders `--output table/csv/json`, and the `fields` config key and env are ignored | toolkit builtin. The render hook cannot see it | none |
-| C5 | Writes accept `--dry-run` (preview, no change) and a hidden `--apply` | `CLIImmediate` | additive |
-| C6 | Env and config defaults for command flags (for example `EIGHTCTL_TIME` for `alarm create --time`), an accident of viper's global binding, are ignored. Root settings keep them | flags belong to the command | none |
-| C7 | New operations `alarm active` and `presence detail`, and `serve`, `mcp`, `metadata` | absorbing `eightsleepctl`, fleet design | additive |
-| C8 | Help and usage are kong's | toolkit CLI | none |
-| C11 | `alarm dismiss-all` uses the route `eightsleepctl` verified (2026-02-12: `PUT` on the app API, which advertises `Allow: PUT`), falling back to dismissing each active alarm. The old `POST` on the client API is gone | the script's verified route; a `POST` to a route that advertises only `PUT` fails, though this was not re-checked live | none |
+| C1 | Exit codes follow the family table instead of 1 for every failure: usage 2 (parse errors, flag validation, `--side` mismatches, bad dates), not found 3 (provider 404, no household users), auth 5 (no credentials or cached token, refused token request, 401, 403, ambiguous cached accounts), rate 6, timeout 7. A bare invocation exits 2 instead of printing help with 0 | family contract, which the fleet contracts check | none |
+| C2 | Failure stderr is one `error: <message>` line (or the JSON envelope under `--json`/`--agent`) instead of cobra's `Error:` line, the usage text and a timestamped `FATAL` log line. The message text is unchanged. The insecure-config warning reads `warning: config file ...` | toolkit CLI | none: nothing parses stderr |
+| C3 | New `--json` and `--agent` print the operation's result. For row commands it is the array `--output json` printed; writes print `{applied, ...}` | toolkit builtin | additive |
+| C4 | `--fields` filters `--json`/`--agent` output only. It no longer filters or orders `--output table/csv/json`, is no longer repeatable, and the `fields` config key and `EIGHTCTL_FIELDS` are ignored | toolkit builtin (G3) | none |
+| C5 | Writes accept `--dry-run` (preview, nothing changes) and a hidden no-op `--apply`. A preview of a write that resolves sides still reads the household | `CLIImmediate` | additive |
+| C6 | Env and config-file defaults for command flags (for example `EIGHTCTL_TIME` or a `days:` key for `alarm create`), an accident of viper's global binding, are ignored. Root settings keep their env and config keys | flags belong to their command | none |
+| C7 | New operations `alarm active` and `presence detail` (from `eightsleepctl`), `presence check` as the explicit spelling of `presence`, and the toolkit's `serve`, `mcp` and `metadata`. HTTP and MCP apply writes only with `"apply": true`, deletes only with `"confirm": true`, and `serve` refuses applied writes by default | absorbing the script, fleet design | additive |
+| C8 | Help and usage are kong's and name the program `eightsleep`, also when run as `eightctl`. `version` and `--version` print the release tag (or `dev`) instead of `0.2.8-0xble.0.1.0` | toolkit CLI, rename | none |
+| C9 | A negative level needs `--`: `temp --side right -- -40`. `temp -40` is a usage error (exit 2) | G1 | none found. The README example changed |
+| C10 | `alarm list` prints a set sound's ID in the table; `eightctl` printed a Go pointer address | the address was never meaningful | none |
+| C11 | `alarm dismiss-all` sends `PUT` to the app API route the script verified (it advertises `Allow: PUT`), and on 404 or 405 dismisses each active alarm. `eightctl` sent `POST` to the client API. With `--json` it prints the script's `{ok, method[, dismissed_alarm_ids]}`; human output is still empty | the script's verified route. Not re-checked live | none |
+| C12 | Input validation (missing `--time`, `--track`, `--trip`, empty updates, bad dates, `--from`/`--to` order) runs before credentials are checked, so these fail with exit 2 even without credentials | no request should be needed to reject bad input | none |
+| C13 | `logout --json` prints `{"cleared": true}` | toolkit `--json` | additive |
+| C14 | `~/.config/eightsleep/config.yaml` and `config.yml` are read when present, and `EIGHTSLEEP_*` variables win over `EIGHTCTL_*` | the rename | additive |
+| C15 | `eightsleepctl` equivalents differ where the table above says: `alarm list` rows instead of raw alarms, `whoami` makes no token request when a user ID is configured and then omits `token_expires_at`, expiries end in `Z` instead of `+00:00`, the dry-run `fallback` names the per-alarm route the fallback really uses, `client_id`/`client_secret` default to the public app client, the script's own token cache is not read, and failures use the family exit codes | one implementation per command | none: no caller of the script was found |
+
+## MCP Exposure
+
+83 of 84 operations are MCP tools; `version` is not. The two deletes are
+`destructive`, so MCP marks them with `destructiveHint` and requires
+`"apply": true, "confirm": true`. Every other write requires `"apply": true`.
