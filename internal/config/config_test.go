@@ -17,7 +17,9 @@ func write(t *testing.T, path, data string, mode os.FileMode) {
 	}
 }
 
-func envOf(vars map[string]string) func(string) string { return func(k string) string { return vars[k] } }
+func envOf(vars map[string]string) func(string) string {
+	return func(k string) string { return vars[k] }
+}
 
 func TestLoadReadsConfigAndEnv(t *testing.T) {
 	home := t.TempDir()
