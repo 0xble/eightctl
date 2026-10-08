@@ -42,11 +42,30 @@ type PresenceRow struct {
 	Present bool `json:"present"`
 }
 
-// PresenceDetailInput tunes eightsleepctl's presence heuristic.
+// PresenceDetailInput tunes eightsleepctl's presence heuristic. The windows
+// are pointers with the defaults applied in windows(), so an explicit 0 from
+// the flag, the environment or a request survives (toolkit gap G2).
 type PresenceDetailInput struct {
 	Zone
-	PresentWithin int `json:"present_window_seconds,omitempty" name:"present-within" default:"1200" env:"EIGHTSLEEPCTL_PRESENCE_MAX_AGE_SECONDS" help:"A signal newer than this many seconds means present"`
-	AbsentAfter   int `json:"absent_window_seconds,omitempty" name:"absent-after" default:"7200" env:"EIGHTSLEEPCTL_ABSENCE_MIN_AGE_SECONDS" help:"A signal at least this many seconds old means absent"`
+	PresentWithin *int `json:"present_window_seconds,omitempty" name:"present-within" env:"EIGHTSLEEPCTL_PRESENCE_MAX_AGE_SECONDS" help:"A signal newer than this many seconds means present (default 1200)"`
+	AbsentAfter   *int `json:"absent_window_seconds,omitempty" name:"absent-after" env:"EIGHTSLEEPCTL_ABSENCE_MIN_AGE_SECONDS" help:"A signal at least this many seconds old means absent (default 7200)"`
+}
+
+// Default presence windows, eightsleepctl's.
+const (
+	defaultPresentWithin = 1200
+	defaultAbsentAfter   = 7200
+)
+
+func (in PresenceDetailInput) windows() (present, absent int) {
+	present, absent = defaultPresentWithin, defaultAbsentAfter
+	if in.PresentWithin != nil {
+		present = *in.PresentWithin
+	}
+	if in.AbsentAfter != nil {
+		absent = *in.AbsentAfter
+	}
+	return present, absent
 }
 
 // PresenceDetail is eightsleepctl's presence estimate: the freshest
@@ -324,7 +343,7 @@ func (b *Backend) presenceDetail(ctx context.Context, cl *client.Client, in Pres
 		return PresenceDetail{Present: &f, Reason: "no_timeseries", Device: device}, nil
 	}
 	age := int(now.Sub(lastAt).Seconds())
-	present, absent := in.PresentWithin, in.AbsentAfter
+	present, absent := in.windows()
 	d := PresenceDetail{LastSignal: last, AgeSeconds: &age, PresentWindowSeconds: &present, AbsentWindowSeconds: &absent, Device: device}
 	switch {
 	case now.Sub(lastAt) < time.Duration(present)*time.Second:

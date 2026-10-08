@@ -98,6 +98,52 @@ func TestPresenceDetailWindowsFromEnvironment(t *testing.T) {
 	}
 }
 
+// TestPresenceDetailKeepsAnExplicitZeroWindow: 0 is a real window, not
+// "unset". A zero present window makes even a fresh sample not present, and
+// a zero absent window makes every sample absent, on the flags, the
+// eightsleepctl environment variables and HTTP alike.
+func TestPresenceDetailKeepsAnExplicitZeroWindow(t *testing.T) {
+	cases := map[string]struct {
+		args []string
+		env  map[string]string
+	}{
+		"flags": {args: []string{"presence", "detail", "--json", "--present-within", "0", "--absent-after", "0"}},
+		"env": {args: []string{"presence", "detail", "--json"},
+			env: map[string]string{"EIGHTSLEEPCTL_PRESENCE_MAX_AGE_SECONDS": "0", "EIGHTSLEEPCTL_ABSENCE_MIN_AGE_SECONDS": "0"}},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			for k, v := range c.env {
+				t.Setenv(k, v)
+			}
+			f := newFixture(t)
+			code, out, stderr := f.run(t, c.args...)
+			if code != 0 {
+				t.Fatalf("exit %d: %s", code, stderr)
+			}
+			for _, want := range []string{`"present": false`, `"stale_timeseries"`, `"present_window_seconds": 0`, `"absent_window_seconds": 0`} {
+				if !strings.Contains(out, want) {
+					t.Fatalf("want %s in %s", want, out)
+				}
+			}
+		})
+	}
+	t.Run("http", func(t *testing.T) {
+		f := newFixture(t)
+		status, body := httpCall(t, f, nil, "presence.detail", map[string]any{"present_window_seconds": 0, "absent_window_seconds": 0})
+		if status != 200 || !strings.Contains(body, `"present_window_seconds":0`) || !strings.Contains(body, `"stale_timeseries"`) {
+			t.Fatalf("status %d: %s", status, body)
+		}
+	})
+	t.Run("defaults", func(t *testing.T) {
+		f := newFixture(t)
+		code, out, stderr := f.run(t, "presence", "detail", "--json")
+		if code != 0 || !strings.Contains(out, `"present_window_seconds": 1200`) || !strings.Contains(out, `"absent_window_seconds": 7200`) {
+			t.Fatalf("exit %d: %s %s", code, out, stderr)
+		}
+	})
+}
+
 func TestSleepDayDefaultsToTodayInTheTimezone(t *testing.T) {
 	f := newFixture(t)
 	code, out, stderr := f.run(t, "--timezone", "Asia/Tokyo", "sleep", "day", "--json")
