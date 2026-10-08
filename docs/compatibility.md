@@ -256,7 +256,7 @@ around toolkit dispatch.
 | `logout` | clears the local credential cache, so it stays CLI-only |
 | `daemon` | runs until signalled, reading the config file's schedule, so it cannot be a request/response operation |
 
-2 of 86 commands (2.3%). All 84 others are registry operations with render
+2 of 85 commands (2.4%). All 83 others are registry operations with render
 hooks only. `--output table|json|csv` is a tool root flag that the render
 hooks read, as in triggerdev.
 
@@ -295,6 +295,7 @@ unchanged and covered by the caller test.
 
 ## MCP Exposure
 
-83 of 84 operations are MCP tools; `version` is not. The two deletes are
+82 of 83 operations are MCP tools; `version` is not. 33 are writes, applied
+immediately on the command line. The two deletes are
 `destructive`, so MCP marks them with `destructiveHint` and requires
 `"apply": true, "confirm": true`. Every other write requires `"apply": true`.
