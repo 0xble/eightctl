@@ -3,11 +3,10 @@ package client
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
-
-	"charm.land/log/v2"
 )
 
 // SleepDay represents aggregated sleep metrics for a day.
@@ -73,7 +72,7 @@ func resolveTZ(tz string) string {
 	}
 	name := time.Local.String()
 	if name == "" || name == "Local" {
-		log.Warn("system timezone unresolved; defaulting to UTC. Pass --timezone <IANA> to override.")
+		slog.Warn("system timezone unresolved; defaulting to UTC. Pass --timezone <IANA> to override.")
 		return "UTC"
 	}
 	return name

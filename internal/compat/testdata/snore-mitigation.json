@@ -1,0 +1,37 @@
+{
+  "program": "eightctl",
+  "args": [
+    "autopilot",
+    "snore-mitigation"
+  ],
+  "exit": 0,
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "PUT",
+      "host": "client-api",
+      "path": "/v1/users/u1/autopilotDetails/snoringMitigation"
+    }
+  ],
+  "writes": [
+    {
+      "method": "PUT",
+      "host": "client-api",
+      "path": "/v1/users/u1/autopilotDetails/snoringMitigation",
+      "body": {
+        "snoringMitigation": {
+          "enabled": true
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "program": "eightctl",
+  "args": [
+    "sleep",
+    "range"
+  ],
+  "exit": 1,
+  "error": "--from and --to are required",
+  "requests": []
+}

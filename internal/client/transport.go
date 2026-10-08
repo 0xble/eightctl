@@ -7,12 +7,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
-	"charm.land/log/v2"
-	"github.com/steipete/eightctl/internal/tokencache"
+	"github.com/0xble/eightsleep/internal/tokencache"
 )
 
 const maxRetries = 3
@@ -48,11 +49,11 @@ func (c *Client) doBase(ctx context.Context, baseURL, method, path string, query
 	if err == nil || !retryBase {
 		return err
 	}
-	alt := alternateBase(baseURL)
+	alt := c.alternateBase(baseURL)
 	if alt == "" {
 		return err
 	}
-	log.Debug("retrying on alternate API base", "from", baseURL, "to", alt, "method", method, "path", path)
+	slog.Debug("retrying on alternate API base", "from", baseURL, "to", alt, "method", method, "path", path)
 	altURL := alt + path
 	if len(query) > 0 {
 		altURL += "?" + query.Encode()
@@ -96,9 +97,10 @@ func (c *Client) doRequest(ctx context.Context, method, u string, body any, out 
 		}
 		switch resp.StatusCode {
 		case http.StatusTooManyRequests:
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			if attempt >= maxRetries {
-				return false, fmt.Errorf("rate limited after %d retries: %s %s", maxRetries, method, u)
+				return false, &APIError{Method: method, URL: u, Status: resp.StatusCode,
+					msg: fmt.Sprintf("rate limited after %d retries: %s %s", maxRetries, method, u)}
 			}
 			timer := time.NewTimer(time.Duration(2*(attempt+1)) * time.Second)
 			select {
@@ -108,9 +110,10 @@ func (c *Client) doRequest(ctx context.Context, method, u string, body any, out 
 			case <-timer.C:
 			}
 		case http.StatusUnauthorized:
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			if attempt >= maxRetries {
-				return false, fmt.Errorf("unauthorized after %d retries: %s %s", maxRetries, method, u)
+				return false, &APIError{Method: method, URL: u, Status: resp.StatusCode,
+					msg: fmt.Sprintf("unauthorized after %d retries: %s %s", maxRetries, method, u)}
 			}
 			c.token = ""
 			_ = tokencache.Clear(c.Identity())
@@ -119,17 +122,15 @@ func (c *Client) doRequest(ctx context.Context, method, u string, body any, out 
 				return false, err
 			}
 		default:
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 			reader, err := decodedBody(resp)
 			if err != nil {
 				return false, err
 			}
 			if resp.StatusCode >= 300 {
 				b, _ := io.ReadAll(reader)
-				if allowFallback && shouldTryFallbackBase(u, resp.StatusCode, b) {
-					return true, fmt.Errorf("api %s %s: status %d: %s", method, u, resp.StatusCode, string(b))
-				}
-				return false, fmt.Errorf("api %s %s: status %d: %s", method, u, resp.StatusCode, string(b))
+				apiErr := &APIError{Method: method, URL: u, Status: resp.StatusCode, Body: string(b)}
+				return allowFallback && c.shouldTryFallbackBase(u, resp.StatusCode, b), apiErr
 			}
 			if out != nil {
 				return false, json.NewDecoder(reader).Decode(out)
@@ -153,12 +154,13 @@ func decodedBody(resp *http.Response) (io.Reader, error) {
 	return gr, nil
 }
 
-func alternateBase(baseURL string) string {
+func (c *Client) alternateBase(baseURL string) string {
+	primary, fallback := c.bases()
 	switch baseURL {
-	case defaultBaseURL:
-		return fallbackBaseURL
-	case fallbackBaseURL:
-		return defaultBaseURL
+	case primary:
+		return fallback
+	case fallback:
+		return primary
 	default:
 		return ""
 	}
@@ -166,8 +168,8 @@ func alternateBase(baseURL string) string {
 
 // shouldTryFallbackBase reports whether a failed request looks like the route
 // simply does not exist on this API host, rather than a real error state.
-func shouldTryFallbackBase(requestURL string, statusCode int, body []byte) bool {
-	if bytes.HasPrefix([]byte(requestURL), []byte(fallbackBaseURL)) {
+func (c *Client) shouldTryFallbackBase(requestURL string, statusCode int, body []byte) bool {
+	if _, fallback := c.bases(); strings.HasPrefix(requestURL, fallback) {
 		return false
 	}
 	lower := bytes.ToLower(body)

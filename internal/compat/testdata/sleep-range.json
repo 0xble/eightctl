@@ -1,0 +1,58 @@
+{
+  "program": "eightctl",
+  "args": [
+    "sleep",
+    "range",
+    "--from",
+    "2026-10-03",
+    "--to",
+    "2026-10-04",
+    "--output",
+    "json"
+  ],
+  "exit": 0,
+  "stdout_json": [
+    {
+      "date": "2026-10-03",
+      "duration": 27003,
+      "heart_rate": 58.25,
+      "hrv_score": 71,
+      "resp_rate": 14.5,
+      "score": 83,
+      "tnt": 12
+    },
+    {
+      "date": "2026-10-04",
+      "duration": 27004,
+      "heart_rate": 58.25,
+      "hrv_score": 71,
+      "resp_rate": 14.5,
+      "score": 84,
+      "tnt": 12
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u1/trends",
+      "query": "from=2026-10-03\u0026include-all-sessions=true\u0026include-main=false\u0026model-version=v2\u0026to=2026-10-03\u0026tz=UTC"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u1/trends",
+      "query": "from=2026-10-04\u0026include-all-sessions=true\u0026include-main=false\u0026model-version=v2\u0026to=2026-10-04\u0026tz=UTC"
+    }
+  ]
+}

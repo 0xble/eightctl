@@ -1,0 +1,40 @@
+{
+  "program": "eightctl",
+  "args": [
+    "travel",
+    "create-trip",
+    "--destination",
+    "Tokyo",
+    "--trip-timezone",
+    "Asia/Tokyo"
+  ],
+  "exit": 0,
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "POST",
+      "host": "client-api",
+      "path": "/v1/users/u1/travel/trips"
+    }
+  ],
+  "writes": [
+    {
+      "method": "POST",
+      "host": "client-api",
+      "path": "/v1/users/u1/travel/trips",
+      "body": {
+        "destination": "Tokyo",
+        "timezone": "Asia/Tokyo"
+      }
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "program": "eightctl",
+  "args": [
+    "logout"
+  ],
+  "exit": 0,
+  "stdout_text": "Logged out (token cache cleared)\n",
+  "requests": []
+}

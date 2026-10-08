@@ -1,0 +1,16 @@
+{
+  "program": "eightctl",
+  "args": [
+    "alarm",
+    "list"
+  ],
+  "exit": 1,
+  "error": "token auth failed: 401 Unauthorized",
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    }
+  ]
+}

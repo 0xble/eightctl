@@ -1,0 +1,34 @@
+{
+  "program": "eightctl",
+  "args": [
+    "tempmode",
+    "hotflash",
+    "off"
+  ],
+  "exit": 0,
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "POST",
+      "host": "client-api",
+      "path": "/v1/users/u1/temperature/hot-flash-mode/deactivate"
+    }
+  ],
+  "writes": [
+    {
+      "method": "POST",
+      "host": "client-api",
+      "path": "/v1/users/u1/temperature/hot-flash-mode/deactivate",
+      "body": {}
+    }
+  ]
+}

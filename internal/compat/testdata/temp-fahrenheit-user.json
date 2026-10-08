@@ -1,0 +1,69 @@
+{
+  "program": "eightctl",
+  "args": [
+    "temp",
+    "68F",
+    "--target-user-id",
+    "u2"
+  ],
+  "exit": 0,
+  "stdout_text": "temperature set (level -42) for side right\n",
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/devices/d1",
+      "query": "filter=leftUserId,rightUserId,awaySides"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u1"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u2"
+    },
+    {
+      "method": "PUT",
+      "host": "app-api",
+      "path": "/v1/users/u2/temperature"
+    },
+    {
+      "method": "PUT",
+      "host": "app-api",
+      "path": "/v1/users/u2/temperature"
+    }
+  ],
+  "writes": [
+    {
+      "method": "PUT",
+      "host": "app-api",
+      "path": "/v1/users/u2/temperature",
+      "body": {
+        "currentState": {
+          "type": "smart"
+        }
+      }
+    },
+    {
+      "method": "PUT",
+      "host": "app-api",
+      "path": "/v1/users/u2/temperature",
+      "body": {
+        "currentLevel": -42
+      }
+    }
+  ]
+}

@@ -34,7 +34,7 @@ func (c *Client) GetPresence(ctx context.Context, from, to, timezone string) (bo
 	if err != nil {
 		return false, fmt.Errorf("load timezone %q: %w", tz, err)
 	}
-	now := time.Now().In(location)
+	now := c.now().In(location)
 	from, to = resolvePresenceWindow(now, from, to)
 	q := url.Values{}
 	q.Set("tz", tz)

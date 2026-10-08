@@ -1,0 +1,40 @@
+{
+  "program": "eightctl",
+  "args": [
+    "--fields",
+    "id,time",
+    "alarm",
+    "list",
+    "--output",
+    "json"
+  ],
+  "exit": 0,
+  "stdout_json": [
+    {
+      "id": "a1",
+      "time": "07:00"
+    },
+    {
+      "id": "a2",
+      "time": "09:30"
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u1/alarms"
+    }
+  ],
+  "change": "--fields filters --json output only (C4)"
+}

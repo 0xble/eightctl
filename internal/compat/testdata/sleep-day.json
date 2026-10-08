@@ -1,0 +1,29 @@
+{
+  "program": "eightctl",
+  "args": [
+    "sleep",
+    "day",
+    "--date",
+    "2026-10-04"
+  ],
+  "exit": 0,
+  "stdout_text": "date        score  duration  latency_asleep  latency_out  tnt  resp_rate  heart_rate  hrv_score\n2026-10-04  84     27004     600             300          12   14.5       58.25       71\n",
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u1/trends",
+      "query": "from=2026-10-04\u0026include-all-sessions=true\u0026include-main=false\u0026model-version=v2\u0026to=2026-10-04\u0026tz=UTC"
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "program": "eightctl",
+  "args": [
+    "away",
+    "off",
+    "--both"
+  ],
+  "exit": 0,
+  "stdout_text": "away mode deactivated (2 household members)\n",
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/devices/d1",
+      "query": "filter=leftUserId,rightUserId,awaySides"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u1"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u2"
+    },
+    {
+      "method": "PUT",
+      "host": "app-api",
+      "path": "/v1/users/u1/away-mode"
+    },
+    {
+      "method": "PUT",
+      "host": "app-api",
+      "path": "/v1/users/u2/away-mode"
+    }
+  ],
+  "writes": [
+    {
+      "method": "PUT",
+      "host": "app-api",
+      "path": "/v1/users/u1/away-mode",
+      "body": {
+        "awayPeriod": {
+          "end": "\u003crecent\u003e"
+        }
+      }
+    },
+    {
+      "method": "PUT",
+      "host": "app-api",
+      "path": "/v1/users/u2/away-mode",
+      "body": {
+        "awayPeriod": {
+          "end": "\u003crecent\u003e"
+        }
+      }
+    }
+  ]
+}

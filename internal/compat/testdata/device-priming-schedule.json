@@ -1,0 +1,34 @@
+{
+  "program": "eightctl",
+  "args": [
+    "device",
+    "priming-schedule",
+    "--output",
+    "json"
+  ],
+  "exit": 0,
+  "stdout_json": [
+    {
+      "priming-schedule": {
+        "fixture": "client-api/v1/devices/d1/priming/schedule"
+      }
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/devices/d1/priming/schedule"
+    }
+  ]
+}

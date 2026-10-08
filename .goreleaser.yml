@@ -1,0 +1,44 @@
+version: 2
+project_name: eightsleep
+
+before:
+  hooks:
+    - go mod tidy
+
+# One main package, built twice: eightsleep, and eightctl, the name it had
+# before the rename, so existing invocations keep working.
+builds:
+  - id: eightsleep
+    main: ./cmd/eightsleep
+    binary: eightsleep
+    env:
+      - CGO_ENABLED=0
+    goos: [darwin, linux, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+  - id: eightctl
+    main: ./cmd/eightsleep
+    binary: eightctl
+    env:
+      - CGO_ENABLED=0
+    goos: [darwin, linux, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - id: eightsleep
+    ids: [eightsleep, eightctl]
+    formats: [tar.gz]
+    name_template: "eightsleep_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: git
+  sort: asc

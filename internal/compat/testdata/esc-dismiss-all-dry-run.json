@@ -1,0 +1,34 @@
+{
+  "program": "eightsleepctl",
+  "args": [
+    "alarm",
+    "dismiss-all",
+    "--dry-run"
+  ],
+  "new_args": [
+    "alarm",
+    "dismiss-all",
+    "--dry-run",
+    "--json"
+  ],
+  "exit": 0,
+  "stdout_json": {
+    "dry_run": true,
+    "fallback": "\u003cfake\u003e/app-api/v1/users/u1/routines (PUT with alarmId from \u003cfake\u003e/app-api/v2/users/u1/routines)",
+    "next_alarm_id": "a1",
+    "primary": "\u003cfake\u003e/app-api/v1/users/u1/alarms/active/dismiss-all (PUT)"
+  },
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "app-api",
+      "path": "/v2/users/u1/routines"
+    }
+  ],
+  "change": "fallback names the route the fallback really uses (POST each active alarm's dismiss) instead of a routines PUT"
+}

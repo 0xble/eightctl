@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xble/eightsleep/internal/client"
+	"github.com/0xble/eightsleep/internal/tokencache"
 	"github.com/99designs/keyring"
-	"github.com/steipete/eightctl/internal/client"
-	"github.com/steipete/eightctl/internal/tokencache"
 )
 
 func TestParseTemp(t *testing.T) {

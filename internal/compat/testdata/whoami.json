@@ -1,0 +1,20 @@
+{
+  "program": "eightctl",
+  "args": [
+    "whoami"
+  ],
+  "exit": 0,
+  "stdout_text": "UserID: u1\n",
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    }
+  ]
+}

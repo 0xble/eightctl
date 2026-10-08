@@ -1,0 +1,34 @@
+{
+  "program": "eightctl",
+  "args": [
+    "travel",
+    "delete-trip",
+    "--trip",
+    "trip1"
+  ],
+  "exit": 0,
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "DELETE",
+      "host": "client-api",
+      "path": "/v1/users/u1/travel/trips/trip1"
+    }
+  ],
+  "writes": [
+    {
+      "method": "DELETE",
+      "host": "client-api",
+      "path": "/v1/users/u1/travel/trips/trip1"
+    }
+  ]
+}

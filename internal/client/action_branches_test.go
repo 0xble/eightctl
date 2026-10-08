@@ -85,7 +85,7 @@ func TestEnsureUserAndDeviceErrorBranches(t *testing.T) {
 	ctx := context.Background()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, `{"user":{}}`)
+		_, _ = io.WriteString(w, `{"user":{}}`)
 	}))
 	defer srv.Close()
 
@@ -106,7 +106,7 @@ func TestEnsureUserAndDeviceErrorBranches(t *testing.T) {
 func TestEnsureDeviceIDFallsBackToDevicesList(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, `{"user":{"devices":["dev-from-list"]}}`)
+		_, _ = io.WriteString(w, `{"user":{"devices":["dev-from-list"]}}`)
 	}))
 	defer srv.Close()
 
@@ -134,9 +134,9 @@ func TestDeviceOwnerFallback(t *testing.T) {
 			ownerCalls++
 			http.Error(w, "missing", http.StatusNotFound)
 		case "/devices/dev":
-			io.WriteString(w, `{"result":{"ownerId":"owner-1"}}`)
+			_, _ = io.WriteString(w, `{"result":{"ownerId":"owner-1"}}`)
 		default:
-			io.WriteString(w, `{}`)
+			_, _ = io.WriteString(w, `{}`)
 		}
 	}))
 	defer srv.Close()
@@ -164,7 +164,7 @@ func TestDeviceOwnerFallback(t *testing.T) {
 func TestGetSleepDayNoData(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, `{"days":[]}`)
+		_, _ = io.WriteString(w, `{"days":[]}`)
 	}))
 	defer srv.Close()
 
@@ -188,7 +188,7 @@ func TestAuthTokenEndpointInvalidResponses(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				io.WriteString(w, body)
+				_, _ = io.WriteString(w, body)
 			}))
 			defer srv.Close()
 
@@ -209,7 +209,7 @@ func TestClientActionsPropagateRequireUserError(t *testing.T) {
 	ctx := context.Background()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, `{"user":{}}`)
+		_, _ = io.WriteString(w, `{"user":{}}`)
 	}))
 	defer srv.Close()
 
@@ -294,13 +294,13 @@ func TestHouseholdUsersAndSideResolution(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/devices/dev":
-			io.WriteString(w, `{"result":{"leftUserId":"left-user","rightUserId":"right-user"}}`)
+			_, _ = io.WriteString(w, `{"result":{"leftUserId":"left-user","rightUserId":"right-user"}}`)
 		case "/users/left-user":
-			io.WriteString(w, `{"user":{"userId":"left-user","firstName":"Left","lastName":"Side","email":"left@example.com","currentDevice":{"side":"away"}}}`)
+			_, _ = io.WriteString(w, `{"user":{"userId":"left-user","firstName":"Left","lastName":"Side","email":"left@example.com","currentDevice":{"side":"away"}}}`)
 		case "/users/right-user":
-			io.WriteString(w, `{"user":{"userId":"right-user","firstName":"Right","lastName":"Side","email":"right@example.com","currentDevice":{"side":"right"}}}`)
+			_, _ = io.WriteString(w, `{"user":{"userId":"right-user","firstName":"Right","lastName":"Side","email":"right@example.com","currentDevice":{"side":"right"}}}`)
 		default:
-			io.WriteString(w, `{}`)
+			_, _ = io.WriteString(w, `{}`)
 		}
 	}))
 	defer srv.Close()

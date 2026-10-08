@@ -19,7 +19,7 @@ Load for every full maintenance run or changes to this responsibility.
 - **Surfaces/invariant:** `internal/tokencache/{tokencache.go,tokencache_test.go}`
   and `internal/client/{eightsleep.go,eightsleep_test.go}` keep headless auth
   noninteractive and retries finite.
-- **Proof:** `go test ./internal/tokencache ./internal/client`; **rollback:**
+- **Proof:** `go test ./internal/tokencache ./internal/client ./ops`; **rollback:**
   revert the provenance commit and its regression test together.
 - **Upstream disposition:** Retry mechanics are adopted from released upstream;
   upstream still permits platform keychains, so the file-only divergence remains.

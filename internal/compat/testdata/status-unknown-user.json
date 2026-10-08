@@ -1,0 +1,53 @@
+{
+  "program": "eightctl",
+  "args": [
+    "status",
+    "--target-user-id",
+    "u9",
+    "--output",
+    "json"
+  ],
+  "exit": 0,
+  "stdout_json": [
+    {
+      "level": 0,
+      "mode": "",
+      "name": "u9",
+      "side": "unknown",
+      "user_id": "u9"
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/devices/d1",
+      "query": "filter=leftUserId,rightUserId,awaySides"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u1"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u2"
+    },
+    {
+      "method": "GET",
+      "host": "app-api",
+      "path": "/v1/users/u9/temperature"
+    }
+  ]
+}

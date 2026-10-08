@@ -1,0 +1,39 @@
+{
+  "program": "eightctl",
+  "args": [
+    "travel",
+    "update-plan",
+    "--plan",
+    "p1",
+    "--date",
+    "2026-10-09"
+  ],
+  "exit": 0,
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "PATCH",
+      "host": "client-api",
+      "path": "/v1/users/u1/travel/plans/p1"
+    }
+  ],
+  "writes": [
+    {
+      "method": "PATCH",
+      "host": "client-api",
+      "path": "/v1/users/u1/travel/plans/p1",
+      "body": {
+        "date": "2026-10-09"
+      }
+    }
+  ]
+}

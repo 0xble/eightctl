@@ -1,0 +1,38 @@
+{
+  "program": "eightctl",
+  "args": [
+    "audio",
+    "play",
+    "--track",
+    "t1"
+  ],
+  "exit": 0,
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "POST",
+      "host": "client-api",
+      "path": "/v1/users/u1/audio/player"
+    }
+  ],
+  "writes": [
+    {
+      "method": "POST",
+      "host": "client-api",
+      "path": "/v1/users/u1/audio/player",
+      "body": {
+        "action": "play",
+        "trackId": "t1"
+      }
+    }
+  ]
+}

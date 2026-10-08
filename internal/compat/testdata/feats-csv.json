@@ -1,0 +1,22 @@
+{
+  "program": "eightctl",
+  "args": [
+    "feats",
+    "--output",
+    "csv"
+  ],
+  "exit": 0,
+  "stdout_text": "title,body\nAutopilot,Learns your sleep.\n",
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/release/features"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "program": "eightctl",
+  "args": [
+    "household",
+    "schedule",
+    "--output",
+    "json"
+  ],
+  "exit": 0,
+  "stdout_json": [
+    {
+      "schedule": {
+        "fixture": "app-api/v1/household/users/u1/schedule"
+      }
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "GET",
+      "host": "app-api",
+      "path": "/v1/household/users/u1/schedule"
+    }
+  ]
+}

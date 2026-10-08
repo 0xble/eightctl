@@ -5,140 +5,93 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/spf13/viper"
 )
 
-func TestLoadReadsConfigAndEnv(t *testing.T) {
-	dir := t.TempDir()
-	cfgPath := filepath.Join(dir, "config.yaml")
-	if err := os.WriteFile(cfgPath, []byte(strings.Join([]string{
-		"email: file@example.com",
-		"password: file-pass",
-		"user_id: user-file",
-		"timezone: Europe/Vienna",
-		"output: json",
-		"fields:",
-		"  - score",
-		"verbose: true",
-	}, "\n")), 0o600); err != nil {
-		t.Fatalf("write config: %v", err)
+func write(t *testing.T, path, data string, mode os.FileMode) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
 	}
-	t.Setenv("EIGHTCTL_PASSWORD", "env-pass")
+	if err := os.WriteFile(path, []byte(data), mode); err != nil {
+		t.Fatal(err)
+	}
+}
 
-	got, err := Load(viper.New(), cfgPath, true)
+func envOf(vars map[string]string) func(string) string {
+	return func(k string) string { return vars[k] }
+}
+
+func TestLoadReadsConfigAndEnv(t *testing.T) {
+	home := t.TempDir()
+	write(t, filepath.Join(home, ".config", "eightctl", "config.yaml"),
+		"email: file@example.invalid\npassword: file-pass\ntimezone: America/New_York\noutput: JSON\nquiet: true\n", 0o600)
+	s, err := Load(Flags{Password: "flag-pass"}, home, envOf(map[string]string{"EIGHTCTL_EMAIL": "env@example.invalid"}))
 	if err != nil {
-		t.Fatalf("Load: %v", err)
+		t.Fatal(err)
 	}
-	if got.Email != "file@example.com" {
-		t.Fatalf("Email = %q", got.Email)
+	if s.Email != "env@example.invalid" || s.Password != "flag-pass" || s.Timezone != "America/New_York" || s.Output != "json" {
+		t.Fatalf("precedence is flag, env, file: %+v", s)
 	}
-	if got.Password != "env-pass" {
-		t.Fatalf("Password = %q, want env override", got.Password)
+	if !s.AwayQuiet || s.Quiet {
+		t.Fatalf("the quiet key silences away output only: %+v", s)
 	}
-	if got.UserID != "user-file" || got.Timezone != "Europe/Vienna" || got.Output != "json" || !got.Verbose {
-		t.Fatalf("config = %+v", got)
-	}
-	if len(got.Fields) != 1 || got.Fields[0] != "score" {
-		t.Fatalf("Fields = %#v", got.Fields)
+	if s.Path == "" || s.Insecure() {
+		t.Fatalf("path %q, insecure %v", s.Path, s.Insecure())
 	}
 }
 
 func TestLoadDefaultsWhenConfigMissing(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	got, err := Load(viper.New(), "", true)
+	s, err := Load(Flags{}, t.TempDir(), envOf(nil))
 	if err != nil {
-		t.Fatalf("Load: %v", err)
+		t.Fatal(err)
 	}
-	if got.Timezone != "local" || got.Output != "table" {
-		t.Fatalf("defaults = %+v", got)
+	if s.Path != "" || s.Timezone != "local" || s.Output != "table" {
+		t.Fatalf("defaults: %+v", s)
+	}
+}
+
+func TestLoadPrefersEightsleepPathAndPrefix(t *testing.T) {
+	home := t.TempDir()
+	write(t, filepath.Join(home, ".config", "eightctl", "config.yaml"), "email: old@example.invalid\n", 0o600)
+	write(t, filepath.Join(home, ".config", "eightsleep", "config.yaml"), "email: new@example.invalid\n", 0o600)
+	s, err := Load(Flags{}, home, envOf(map[string]string{"EIGHTCTL_TIMEZONE": "UTC", "EIGHTSLEEP_TIMEZONE": "Asia/Tokyo"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Email != "new@example.invalid" || s.Timezone != "Asia/Tokyo" {
+		t.Fatalf("eightsleep path and prefix win: %+v", s)
 	}
 }
 
 func TestLoadConfigSelectedByEnvironment(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("HOME", dir)
-	path := filepath.Join(dir, "selected.yaml")
-	if err := os.WriteFile(path, []byte("user_id: environment-file\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("EIGHTCTL_CONFIG", path)
-	v := viper.New()
-	got, err := Load(v, "", true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.UserID != "environment-file" || v.ConfigFileUsed() != path {
-		t.Fatalf("environment-selected file ignored: user_id=%q file=%q", got.UserID, v.ConfigFileUsed())
-	}
-
-	explicit := filepath.Join(dir, "explicit.yaml")
-	if err := os.WriteFile(explicit, []byte("user_id: explicit-file\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	got, err = Load(viper.New(), explicit, true)
-	if err != nil || got.UserID != "explicit-file" {
-		t.Fatalf("explicit config must override environment: user_id=%q error=%v", got.UserID, err)
+	path := filepath.Join(t.TempDir(), "custom.yaml")
+	write(t, path, "user_id: from-env-file\n", 0o600)
+	s, err := Load(Flags{}, t.TempDir(), envOf(map[string]string{"EIGHTCTL_CONFIG": path}))
+	if err != nil || s.UserID != "from-env-file" {
+		t.Fatalf("user %q, err %v", s.UserID, err)
 	}
 }
 
-func TestLoadReportsEnvironmentSelectedFileErrors(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("HOME", dir)
-	for _, filename := range []string{"missing.yaml", "malformed.yaml"} {
-		t.Run(filename, func(t *testing.T) {
-			path := filepath.Join(dir, filename)
-			if filename == "malformed.yaml" {
-				if err := os.WriteFile(path, []byte("schedule: ["), 0o600); err != nil {
-					t.Fatal(err)
-				}
-			}
-			t.Setenv("EIGHTCTL_CONFIG", path)
-			if _, err := Load(viper.New(), "", true); err == nil {
-				t.Fatal("invalid environment-selected file was ignored")
-			}
-		})
+func TestLoadReportsSelectedFileErrors(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "missing.yaml")
+	if _, err := Load(Flags{}, t.TempDir(), envOf(map[string]string{"EIGHTCTL_CONFIG": missing})); err == nil {
+		t.Fatal("a missing file selected by the environment must fail")
+	}
+	if _, err := Load(Flags{Config: missing}, t.TempDir(), envOf(nil)); err == nil {
+		t.Fatal("a missing --config file must fail")
+	}
+	bad := filepath.Join(t.TempDir(), "bad.yaml")
+	write(t, bad, "email: [unclosed\n", 0o600)
+	if _, err := Load(Flags{Config: bad}, t.TempDir(), envOf(nil)); err == nil || !strings.Contains(err.Error(), "read config") {
+		t.Fatalf("malformed YAML: %v", err)
 	}
 }
 
-func TestLoadReportsFileErrors(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	if _, err := Load(viper.New(), filepath.Join(t.TempDir(), "missing.yaml"), true); err == nil {
-		t.Error("explicit missing config was ignored")
-	}
-	dir := filepath.Join(os.Getenv("HOME"), ".config", "eightctl")
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	path := filepath.Join(dir, "config.yaml")
-	if err := os.WriteFile(path, []byte("schedule: ["), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	for _, selected := range []string{path, ""} {
-		if _, err := Load(viper.New(), selected, true); err == nil {
-			t.Errorf("malformed config %q was ignored", selected)
-		}
-	}
-}
-
-func TestWarnInsecurePerms(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := os.WriteFile(path, []byte("email: x"), 0o644); err != nil {
-		t.Fatalf("write config: %v", err)
-	}
-	if err := WarnInsecurePerms(path); err == nil {
-		t.Fatalf("expected insecure permission warning")
-	}
-	if err := os.Chmod(path, 0o600); err != nil {
-		t.Fatalf("chmod: %v", err)
-	}
-	if err := WarnInsecurePerms(path); err != nil {
-		t.Fatalf("WarnInsecurePerms secure file: %v", err)
-	}
-	if err := WarnInsecurePerms(filepath.Join(t.TempDir(), "missing.yaml")); err != nil {
-		t.Fatalf("missing file should not warn: %v", err)
-	}
-	if err := WarnInsecurePerms(""); err != nil {
-		t.Fatalf("empty path should not warn: %v", err)
+func TestInsecure(t *testing.T) {
+	home := t.TempDir()
+	write(t, filepath.Join(home, ".config", "eightctl", "config.yaml"), "email: a@example.invalid\n", 0o644)
+	s, err := Load(Flags{}, home, envOf(nil))
+	if err != nil || !s.Insecure() {
+		t.Fatalf("a 0644 config is insecure: %v %v", s.Insecure(), err)
 	}
 }

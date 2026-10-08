@@ -1,0 +1,13 @@
+{
+  "program": "eightctl",
+  "args": [
+    "on",
+    "--side",
+    "left",
+    "--target-user-id",
+    "u2"
+  ],
+  "exit": 1,
+  "error": "use either --target-user-id or --side, not both",
+  "requests": []
+}

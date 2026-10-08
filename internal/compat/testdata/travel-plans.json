@@ -1,0 +1,36 @@
+{
+  "program": "eightctl",
+  "args": [
+    "travel",
+    "plans",
+    "--trip",
+    "trip1",
+    "--output",
+    "json"
+  ],
+  "exit": 0,
+  "stdout_json": [
+    {
+      "plans": {
+        "fixture": "client-api/v1/users/u1/travel/trips/trip1/plans"
+      }
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u1/travel/trips/trip1/plans"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "program": "eightctl",
+  "args": [
+    "--quiet",
+    "away",
+    "on"
+  ],
+  "exit": 0,
+  "stdout_text": "away mode activated (your side)\n",
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "PUT",
+      "host": "app-api",
+      "path": "/v1/users/u1/away-mode"
+    }
+  ],
+  "writes": [
+    {
+      "method": "PUT",
+      "host": "app-api",
+      "path": "/v1/users/u1/away-mode",
+      "body": {
+        "awayPeriod": {
+          "start": "\u003crecent\u003e"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "program": "eightctl",
+  "args": [
+    "alarm",
+    "update",
+    "a1",
+    "--enabled=false",
+    "--time",
+    "06:45"
+  ],
+  "exit": 0,
+  "stdout_text": "updated\n",
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "PATCH",
+      "host": "client-api",
+      "path": "/v1/users/u1/alarms/a1"
+    }
+  ],
+  "writes": [
+    {
+      "method": "PATCH",
+      "host": "client-api",
+      "path": "/v1/users/u1/alarms/a1",
+      "body": {
+        "enabled": false,
+        "time": "06:45"
+      }
+    }
+  ]
+}

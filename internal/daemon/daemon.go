@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/steipete/eightctl/internal/client"
+	"github.com/0xble/eightsleep/internal/client"
 )
 
 // ScheduleItem describes a timed action.

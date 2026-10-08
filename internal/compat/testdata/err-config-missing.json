@@ -1,0 +1,11 @@
+{
+  "program": "eightctl",
+  "args": [
+    "--config",
+    "/nonexistent/eightsleep.yaml",
+    "status"
+  ],
+  "exit": 1,
+  "error": "config: read config: open /nonexistent/eightsleep.yaml: no such file or directory",
+  "requests": []
+}

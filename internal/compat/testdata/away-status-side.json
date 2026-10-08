@@ -1,0 +1,53 @@
+{
+  "program": "eightctl",
+  "args": [
+    "away",
+    "status",
+    "--side",
+    "right",
+    "--output",
+    "json"
+  ],
+  "exit": 0,
+  "stdout_json": [
+    {
+      "away": true,
+      "name": "Grace Hopper",
+      "side": "right",
+      "user_id": "u2"
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/devices/d1",
+      "query": "filter=leftUserId,rightUserId,awaySides"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u1"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u2"
+    },
+    {
+      "method": "GET",
+      "host": "app-api",
+      "path": "/v1/users/u2/away-mode"
+    }
+  ]
+}

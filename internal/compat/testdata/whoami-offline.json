@@ -1,0 +1,11 @@
+{
+  "program": "eightctl",
+  "args": [
+    "--user-id",
+    "u1",
+    "whoami"
+  ],
+  "exit": 0,
+  "stdout_text": "UserID: u1\n",
+  "requests": []
+}

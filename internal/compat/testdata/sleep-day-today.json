@@ -1,0 +1,41 @@
+{
+  "program": "eightctl",
+  "args": [
+    "sleep",
+    "day",
+    "--output",
+    "json"
+  ],
+  "exit": 0,
+  "stdout_json": [
+    {
+      "date": "\u003ctoday\u003e",
+      "duration": 27008,
+      "heart_rate": 58.25,
+      "hrv_score": 71,
+      "latency_asleep": 600,
+      "latency_out": 300,
+      "resp_rate": 14.5,
+      "score": 88,
+      "tnt": 12
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "host": "auth-api",
+      "path": "/v1/tokens"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/me"
+    },
+    {
+      "method": "GET",
+      "host": "client-api",
+      "path": "/v1/users/u1/trends",
+      "query": "from=\u003ctoday\u003e\u0026include-all-sessions=true\u0026include-main=false\u0026model-version=v2\u0026to=\u003ctoday\u003e\u0026tz=UTC"
+    }
+  ]
+}
