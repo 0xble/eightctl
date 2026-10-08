@@ -64,6 +64,8 @@ type Server struct {
 	NoSchedule bool
 	// StaleSignals puts the newest trend sample three hours back.
 	StaleSignals bool
+	// WrongUser answers the partner's user record with another user's ID.
+	WrongUser bool
 
 	level map[string]int
 	state map[string]string
@@ -180,7 +182,11 @@ func (s *Server) route(method, host, path string, q url.Values, body []byte) (ou
 		if at(1) != User && at(1) != Partner {
 			return nil, http.StatusNotFound
 		}
-		return map[string]any{"user": s.user(at(1), false)}, 0
+		u := s.user(at(1), false)
+		if s.WrongUser && at(1) == Partner {
+			u["userId"] = "u9"
+		}
+		return map[string]any{"user": u}, 0
 	case at(0) == "devices" && at(1) == Device && len(seg) == 2:
 		return map[string]any{"result": s.device()}, 0
 	case at(0) == "users" && at(2) == "current-device":

@@ -5,6 +5,7 @@ go 1.25.5
 require (
 	github.com/0xble/toolkit v0.1.9
 	github.com/99designs/keyring v1.2.2
+	github.com/modelcontextprotocol/go-sdk v1.8.0
 	go.yaml.in/yaml/v3 v3.0.5
 )
 
@@ -17,7 +18,6 @@ require (
 	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/modelcontextprotocol/go-sdk v1.8.0 // indirect
 	github.com/mtibben/percent v0.2.1 // indirect
 	github.com/segmentio/asm v1.1.3 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect

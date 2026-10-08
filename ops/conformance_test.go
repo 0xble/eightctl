@@ -16,6 +16,19 @@ import (
 // CLI and preview with --dry-run, the deletes need confirm on HTTP and MCP,
 // and the served default refuses applied writes.
 func TestConformance(t *testing.T) {
+	toolkittest.Run(t, toolkittest.Suite{
+		New: func(t testing.TB) toolkittest.Fixture {
+			f := newFixture(t)
+			return toolkittest.Fixture{Registry: f.reg, State: f.fake.Snapshot}
+		},
+		Options: ops.Options(&ops.Backend{Globals: &ops.Globals{}}),
+		Cases:   conformanceCases(t),
+	})
+}
+
+// conformanceCases is one call of every operation, as wire input and as CLI
+// arguments.
+func conformanceCases(t testing.TB) map[string]toolkittest.Case {
 	in := func(kv ...any) map[string]any {
 		m := map[string]any{}
 		for i := 0; i+1 < len(kv); i += 2 {
@@ -69,14 +82,7 @@ func TestConformance(t *testing.T) {
 		}
 		cases[e.Name] = toolkittest.Case{Input: in(), Args: strings.Fields(e.CLI())}
 	}
-	toolkittest.Run(t, toolkittest.Suite{
-		New: func(t testing.TB) toolkittest.Fixture {
-			f := newFixture(t)
-			return toolkittest.Fixture{Registry: f.reg, State: f.fake.Snapshot}
-		},
-		Options: ops.Options(&ops.Backend{Globals: &ops.Globals{}}),
-		Cases:   cases,
-	})
+	return cases
 }
 
 // TestEveryOperationHasACase keeps the conformance table complete: a read
