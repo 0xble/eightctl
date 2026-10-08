@@ -5,8 +5,10 @@
 //
 // For each case it compares the exit code, the exact provider requests
 // (method, host, path, sorted query), the stdout JSON or text, and the error
-// message. Wall-clock values, the fake's address and the sandbox path are
-// normalised.
+// message. The fake's address and the sandbox path are normalised. Dates and
+// timestamps are masked only in cases marked clock, whose program derives
+// them from the wall clock; every other case is compared verbatim whatever
+// the run date.
 //
 // Re-record with internal/compat/record.sh.
 package compat_test
@@ -16,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -71,6 +74,11 @@ type tcase struct {
 	exit int
 	// requests documents why the provider requests differ, and skips them.
 	requests string
+	// clock marks a case whose program derives dates or timestamps from the
+	// wall clock: today's and yesterday's UTC dates, and timestamps on them,
+	// are masked. Without it no date is masked, so a fixture date that happens
+	// to be today still compares literally.
+	clock bool
 }
 
 var (
@@ -102,12 +110,12 @@ var cases = []tcase{
 	{name: "alarm-list-fields", args: []string{"--fields", "id,time", "alarm", "list", "--output", "json"},
 		change: "--fields filters --json output only (C4)"},
 	{name: "presence-window", args: []string{"presence", "--from", "2026-10-04", "--to", "2026-10-05", "--output", "json"}},
-	{name: "presence-default", args: []string{"presence"}},
+	{name: "presence-default", args: []string{"presence"}, clock: true},
 	{name: "schedule", args: []string{"schedule", "list", "--output", "json"}},
 	{name: "schedule-none", args: []string{"schedule", "list"}, fake: func(s *eightfake.Server) { s.NoSchedule = true }},
 	{name: "sleep-day", args: []string{"sleep", "day", "--date", "2026-10-04"}},
 	{name: "sleep-day-json", args: []string{"sleep", "day", "--date", "2026-10-04", "--output", "json"}},
-	{name: "sleep-day-today", args: []string{"sleep", "day", "--output", "json"}},
+	{name: "sleep-day-today", args: []string{"sleep", "day", "--output", "json"}, clock: true},
 	{name: "sleep-range", args: []string{"sleep", "range", "--from", "2026-10-03", "--to", "2026-10-04", "--output", "json"}},
 	{name: "nap-status", args: []string{"tempmode", "nap", "status", "--output", "json"}},
 	{name: "hotflash-status", args: []string{"tempmode", "hotflash", "status"}},
@@ -129,7 +137,7 @@ var cases = []tcase{
 	{name: "device-online", args: []string{"device", "online", "--output", "json"}},
 	{name: "device-priming-tasks", args: []string{"device", "priming-tasks", "--output", "json"}},
 	{name: "device-priming-schedule", args: []string{"device", "priming-schedule", "--output", "json"}},
-	{name: "metrics-trends", args: []string{"metrics", "trends", "--from", "2026-10-01", "--to", "2026-10-02", "--output", "json"}},
+	{name: "metrics-trends", args: []string{"metrics", "trends", "--from", "2026-10-01", "--to", "2026-10-02", "--output", "json"}, clock: true},
 	{name: "metrics-intervals", args: []string{"metrics", "intervals", "--id", "s1", "--output", "json"}},
 	{name: "metrics-summary", args: []string{"metrics", "summary", "--output", "json"}},
 	{name: "metrics-aggregate", args: []string{"metrics", "aggregate", "--output", "json"}},
@@ -171,10 +179,10 @@ var cases = []tcase{
 	{name: "alarm-dismiss", args: []string{"alarm", "dismiss", "a1"}},
 	{name: "alarm-dismiss-all", args: []string{"alarm", "dismiss-all"}, requests: "C11: PUT on the app API instead of POST on the client API"},
 	{name: "alarm-vibration-test", args: []string{"alarm", "vibration-test"}},
-	{name: "away-on", args: []string{"away", "on"}},
-	{name: "away-off-both", args: []string{"away", "off", "--both"}},
-	{name: "away-on-side", args: []string{"away", "on", "--side", "left"}},
-	{name: "away-on-quiet", args: []string{"--quiet", "away", "on"}},
+	{name: "away-on", args: []string{"away", "on"}, clock: true},
+	{name: "away-off-both", args: []string{"away", "off", "--both"}, clock: true},
+	{name: "away-on-side", args: []string{"away", "on", "--side", "left"}, clock: true},
+	{name: "away-on-quiet", args: []string{"--quiet", "away", "on"}, clock: true},
 	{name: "nap-on", args: []string{"tempmode", "nap", "on"}},
 	{name: "nap-extend", args: []string{"tempmode", "nap", "extend"}},
 	{name: "hotflash-off", args: []string{"tempmode", "hotflash", "off"}},
@@ -236,8 +244,8 @@ var cases = []tcase{
 	{name: "esc-dismiss-all-dry-run", old: eightsleepctl, userID: true, args: []string{"alarm", "dismiss-all", "--dry-run"},
 		newArgs: []string{"alarm", "dismiss-all", "--dry-run", "--json"},
 		change:  "fallback names the route the fallback really uses (POST each active alarm's dismiss) instead of a routines PUT"},
-	{name: "esc-presence", old: eightsleepctl, userID: true, args: []string{"presence"}, newArgs: []string{"presence", "detail", "--json"}},
-	{name: "esc-presence-stale", old: eightsleepctl, userID: true, args: []string{"presence"}, newArgs: []string{"presence", "detail", "--json"},
+	{name: "esc-presence", old: eightsleepctl, userID: true, args: []string{"presence"}, newArgs: []string{"presence", "detail", "--json"}, clock: true},
+	{name: "esc-presence-stale", old: eightsleepctl, userID: true, args: []string{"presence"}, newArgs: []string{"presence", "detail", "--json"}, clock: true,
 		fake: func(s *eightfake.Server) { s.StaleSignals = true }},
 }
 
@@ -289,42 +297,60 @@ func TestCallers(t *testing.T) {
 			if err := json.Unmarshal(b, &want); err != nil {
 				t.Fatal(err)
 			}
-			compare(t, c, want, runNew(t, c))
+			for _, d := range diff(c, want, runNew(t, c)) {
+				t.Error(d)
+			}
 		})
 	}
 }
 
-func compare(t *testing.T, c tcase, want, got golden) {
+// loadGolden reads a case's golden.
+func loadGolden(t *testing.T, name string) golden {
 	t.Helper()
+	b, err := os.ReadFile(filepath.Join("testdata", name+".json"))
+	if err != nil {
+		t.Fatalf("no golden for %s; record it with internal/compat/record.sh: %v", name, err)
+	}
+	var g golden
+	if err := json.Unmarshal(b, &g); err != nil {
+		t.Fatal(err)
+	}
+	return g
+}
+
+// diff lists how got differs from the golden want.
+func diff(c tcase, want, got golden) []string {
+	var out []string
 	wantExit := want.Exit
 	if c.exit != 0 {
 		wantExit = c.exit
 	}
 	if got.Exit != wantExit {
-		t.Errorf("exit %d, want %d (old program %d)", got.Exit, wantExit, want.Exit)
+		out = append(out, fmt.Sprintf("exit %d, want %d (old program %d)", got.Exit, wantExit, want.Exit))
 	}
 	if c.requests == "" && !reflect.DeepEqual(got.Requests, want.Requests) {
-		t.Errorf("provider requests differ:\n new %v\n old %v", got.Requests, want.Requests)
+		out = append(out, fmt.Sprintf("provider requests differ:\n new %v\n old %v", got.Requests, want.Requests))
 	}
 	if c.requests == "" && !reflect.DeepEqual(roundTrip(got.Writes), roundTrip(want.Writes)) {
 		g, _ := json.Marshal(got.Writes)
 		w, _ := json.Marshal(want.Writes)
-		t.Errorf("write bodies differ:\n new %s\n old %s", g, w)
+		out = append(out, fmt.Sprintf("write bodies differ:\n new %s\n old %s", g, w))
 	}
 	if c.change != "" {
-		return
+		return out
 	}
 	if !reflect.DeepEqual(roundTrip(got.StdoutJSON), roundTrip(want.StdoutJSON)) {
 		g, _ := json.Marshal(got.StdoutJSON)
 		w, _ := json.Marshal(want.StdoutJSON)
-		t.Errorf("stdout JSON differs:\n new %s\n old %s", g, w)
+		out = append(out, fmt.Sprintf("stdout JSON differs:\n new %s\n old %s", g, w))
 	}
 	if got.StdoutText != want.StdoutText {
-		t.Errorf("stdout text differs:\n new %q\n old %q", got.StdoutText, want.StdoutText)
+		out = append(out, fmt.Sprintf("stdout text differs:\n new %q\n old %q", got.StdoutText, want.StdoutText))
 	}
 	if want.Error != "" && got.Error != want.Error {
-		t.Errorf("error differs:\n new %q\n old %q", got.Error, want.Error)
+		out = append(out, fmt.Sprintf("error differs:\n new %q\n old %q", got.Error, want.Error))
 	}
+	return out
 }
 
 func roundTrip(v any) any {
@@ -395,10 +421,16 @@ func runOld(t *testing.T, bin string, c tcase) golden {
 	if m := regexp.MustCompile(`(?m)^Error: (.*)$`).FindStringSubmatch(stderr.String()); m != nil {
 		errLine = m[1]
 	}
-	return result(c, code, stdout.String(), errLine, fake, home)
+	return result(c, time.Now(), code, stdout.String(), errLine, fake, home)
 }
 
 func runNew(t *testing.T, c tcase) golden {
+	return runNewAt(t, c, time.Now())
+}
+
+// runNewAt runs the new CLI and normalises its result as if the run date
+// were now's.
+func runNewAt(t *testing.T, c tcase, now time.Time) golden {
 	fake := newFake(c)
 	defer fake.Close()
 	env, home := sandbox(t, c, fake)
@@ -434,7 +466,7 @@ func runNew(t *testing.T, c tcase) golden {
 			errLine = env.Error.Message
 		}
 	}
-	return result(c, code, stdout.String(), errLine, fake, home)
+	return result(c, now, code, stdout.String(), errLine, fake, home)
 }
 
 var (
@@ -444,20 +476,12 @@ var (
 	recent = regexp.MustCompile(`<(today|yesterday)>T\d{2}:\d{2}:\d{2}(\.\d+)?Z`)
 )
 
-func result(c tcase, code int, stdout, errLine string, fake *eightfake.Server, home string) golden {
+func result(c tcase, now time.Time, code int, stdout, errLine string, fake *eightfake.Server, home string) golden {
 	reqs := fake.Recorded()
 	if reqs == nil {
 		reqs = []eightfake.Request{}
 	}
-	today := time.Now().UTC().Format("2006-01-02")
-	yesterday := time.Now().UTC().AddDate(0, 0, -1).Format("2006-01-02")
-	clean := func(s string) string {
-		s = strings.ReplaceAll(s, home, "<home>")
-		s = port.ReplaceAllString(s, "<fake>")
-		s = strings.ReplaceAll(s, today, "<today>")
-		s = strings.ReplaceAll(s, yesterday, "<yesterday>")
-		return recent.ReplaceAllString(s, "<recent>")
-	}
+	clean := cleaner(c, now, home)
 	for i := range reqs {
 		reqs[i].Query = clean(reqs[i].Query)
 	}
@@ -480,6 +504,24 @@ func result(c tcase, code int, stdout, errLine string, fake *eightfake.Server, h
 		g.StdoutText = clean(stdout)
 	}
 	return g
+}
+
+// cleaner returns the string normaliser for one run of c at now: the sandbox
+// path and the fake's address always, today's and yesterday's UTC dates and
+// timestamps on them only when c is a clock case.
+func cleaner(c tcase, now time.Time, home string) func(string) string {
+	today := now.UTC().Format("2006-01-02")
+	yesterday := now.UTC().AddDate(0, 0, -1).Format("2006-01-02")
+	return func(s string) string {
+		s = strings.ReplaceAll(s, home, "<home>")
+		s = port.ReplaceAllString(s, "<fake>")
+		if !c.clock {
+			return s
+		}
+		s = strings.ReplaceAll(s, today, "<today>")
+		s = strings.ReplaceAll(s, yesterday, "<yesterday>")
+		return recent.ReplaceAllString(s, "<recent>")
+	}
 }
 
 // normalise masks values that depend on the wall clock: timestamps the fake
@@ -529,6 +571,95 @@ func TestEveryCaseHasAGolden(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("golden %s has no case", name)
+		}
+	}
+}
+
+var (
+	dateLiteral = regexp.MustCompile(`\b\d{4}-\d{2}-\d{2}\b`)
+	// masked is a mask in a golden, which encoding/json writes as \u003c...\u003e.
+	masked = regexp.MustCompile(`(<|\\u003c)(today|yesterday|recent)(>|\\u003e)`)
+)
+
+// TestClockMaskingMatchesGoldens keeps clock in step with the goldens: a
+// golden holds a masked date exactly when its case is a clock case.
+func TestClockMaskingMatchesGoldens(t *testing.T) {
+	for _, c := range cases {
+		b, err := os.ReadFile(filepath.Join("testdata", c.name+".json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if has := masked.Match(b); has != c.clock {
+			t.Errorf("%s: golden has masked dates %v, case clock %v", c.name, has, c.clock)
+		}
+	}
+}
+
+// TestGoldensHoldOnEveryRunDate replays every non-clock case whose golden
+// holds a literal date as if the run date were that date and the next day,
+// the two days a today-or-yesterday mask would rewrite it. travel-update-plan
+// (--date 2026-10-09) is the case that failed on those dates when every case
+// was masked.
+func TestGoldensHoldOnEveryRunDate(t *testing.T) {
+	if *recordEightctl != "" || *recordEightsleepctl != "" {
+		t.Skip("recording")
+	}
+	covered := map[string]bool{}
+	for _, c := range cases {
+		if c.clock {
+			continue
+		}
+		if c.old == "" {
+			c.old = eightctl
+		}
+		b, err := os.ReadFile(filepath.Join("testdata", c.name+".json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		dates := map[string]bool{}
+		for _, d := range dateLiteral.FindAllString(string(b), -1) {
+			dates[d] = true
+		}
+		for d := range dates {
+			day, err := time.Parse("2006-01-02", d)
+			if err != nil {
+				continue
+			}
+			want := loadGolden(t, c.name)
+			for _, now := range []time.Time{day.Add(12 * time.Hour), day.Add(36 * time.Hour)} {
+				t.Run(c.name+"@"+now.Format("2006-01-02"), func(t *testing.T) {
+					for _, d := range diff(c, want, runNewAt(t, c, now)) {
+						t.Error(d)
+					}
+				})
+			}
+			covered[c.name] = true
+		}
+	}
+	if !covered["travel-update-plan"] {
+		t.Fatal("travel-update-plan was not replayed on its fixture date")
+	}
+}
+
+// TestDateMaskWouldBreakTravelUpdatePlan proves the replay above is
+// sensitive: masking travel-update-plan as a clock case on its fixture date
+// and the day after rewrites the fixture date and the golden no longer
+// matches.
+func TestDateMaskWouldBreakTravelUpdatePlan(t *testing.T) {
+	if *recordEightctl != "" || *recordEightsleepctl != "" {
+		t.Skip("recording")
+	}
+	var c tcase
+	for _, k := range cases {
+		if k.name == "travel-update-plan" {
+			c = k
+		}
+	}
+	c.old, c.clock = eightctl, true
+	want := loadGolden(t, c.name)
+	for _, now := range []time.Time{time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC), time.Date(2026, 10, 10, 12, 0, 0, 0, time.UTC)} {
+		if len(diff(c, want, runNewAt(t, c, now))) == 0 {
+			t.Errorf("masking dates on %s left the golden matching; the replay would not catch the bug", now.Format("2006-01-02"))
 		}
 	}
 }
