@@ -66,14 +66,29 @@ type tcase struct {
 	// noConfig runs without a config file; userID puts user_id in it.
 	noConfig bool
 	userID   bool
-	// change, when set, is a documented intentional difference: stdout and
-	// the error message are not compared. Exit code and requests still are,
-	// unless exit or requests below say otherwise.
+	// change, when set, is a documented intentional difference in the
+	// output: stdout and the error message are compared with the documented
+	// replacement below instead of the golden. Exit code, requests and write
+	// bodies are still compared unless exit, requests or refused say
+	// otherwise.
 	change string
+	// changed replaces the listed top-level keys of the golden's stdout JSON
+	// object; every other key still compares with the golden.
+	changed map[string]any
+	// newJSONFrom names another golden whose stdout JSON is the replacement.
+	newJSONFrom string
+	// newJSON, newText and newError are the replacement stdout and error.
+	newJSON  any
+	newText  string
+	newError string
 	// exit is the new exit code when it moved to the family table (C1).
 	exit int
-	// requests documents why the provider requests differ, and skips them.
+	// requests documents why the provider request list differs, and skips
+	// only that list: the bodies of the applied writes are still compared.
 	requests string
+	// refused means the new program rejects the invocation before any
+	// request (C9, C12): it must make no request and apply no write.
+	refused bool
 	// clock marks a case whose program derives dates or timestamps from the
 	// wall clock: today's and yesterday's UTC dates, and timestamps on them,
 	// are masked. Without it no date is masked, so a fixture date that happens
@@ -99,16 +114,17 @@ var cases = []tcase{
 	{name: "status-no-household", args: []string{"status", "--output", "json"}, fake: failGet("client-api", "/v1/users/u2", 500)},
 	{name: "whoami", args: []string{"whoami"}},
 	{name: "whoami-offline", args: []string{"--user-id", "u1", "whoami"}, noConfig: true},
-	{name: "version", args: []string{"version"}, change: "the version is the release tag"},
-	{name: "version-flag", args: []string{"--version"}, change: "the version is the release tag"},
+	{name: "version", args: []string{"version"}, change: "the version is the release tag", newText: "dev\n"},
+	{name: "version-flag", args: []string{"--version"}, change: "the version is the release tag", newText: "dev\n"},
 	{name: "tracks", args: []string{"tracks"}},
 	{name: "tracks-json", args: []string{"tracks", "--output", "json"}},
 	{name: "feats-csv", args: []string{"feats", "--output", "csv"}},
-	{name: "alarm-list", args: []string{"alarm", "list"}, change: "a set sound prints its ID; eightctl printed a pointer address"},
+	{name: "alarm-list", args: []string{"alarm", "list"}, change: "a set sound prints its ID; eightctl printed a pointer address",
+		newText: "id  time   enabled  days         vibration       sound\na1  07:00  true     [1 2 3 4 5]  {true rise 50}  chime\na2  09:30  false    [0 6]        {false  0}      <nil>\n"},
 	{name: "alarm-list-json", args: []string{"alarm", "list", "--output", "json"}},
 	{name: "alarm-list-fallback", args: []string{"alarm", "list", "--output", "json"}, fake: failGet("client-api", "/v1/users/u1/alarms", 404)},
 	{name: "alarm-list-fields", args: []string{"--fields", "id,time", "alarm", "list", "--output", "json"},
-		change: "--fields filters --json output only (C4)"},
+		change: "--fields filters --json output only (C4)", newJSONFrom: "alarm-list-json"},
 	{name: "presence-window", args: []string{"presence", "--from", "2026-10-04", "--to", "2026-10-05", "--output", "json"}},
 	{name: "presence-default", args: []string{"presence"}, clock: true},
 	{name: "schedule", args: []string{"schedule", "list", "--output", "json"}},
@@ -169,8 +185,9 @@ var cases = []tcase{
 	{name: "temp", args: []string{"temp", "20"}},
 	{name: "temp-fahrenheit-user", args: []string{"temp", "68F", "--target-user-id", "u2"}},
 	{name: "temp-negative-dashdash", args: []string{"temp", "--side", "right", "--", "-40"}},
-	{name: "temp-negative", args: []string{"temp", "-40", "--side", "right"}, exit: 2, requests: "refused by the parser before any request",
-		change: "a negative level needs -- before it (temp --side right -- -40): the toolkit's parser reads -40 as flags"},
+	{name: "temp-negative", args: []string{"temp", "-40", "--side", "right"}, exit: 2, refused: true,
+		change:   "a negative level needs -- before it (temp --side right -- -40): the toolkit's parser reads -40 as flags",
+		newError: `unknown flag -4, did you mean one of "-h", "-j", "-y", "-v"?`},
 	{name: "alarm-create", args: []string{"alarm", "create", "--time", "07:30", "--days", "1,2,3"}},
 	{name: "alarm-create-full", args: []string{"alarm", "create", "--time", "06:00", "--days", "0", "--disabled", "--no-vibration", "--sound", "chime"}},
 	{name: "alarm-update", args: []string{"alarm", "update", "a1", "--enabled=false", "--time", "06:45"}},
@@ -219,31 +236,37 @@ var cases = []tcase{
 	{name: "err-all-sides-conflict", args: []string{"status", "--all-sides", "--side", "left"}, exit: 2},
 	{name: "err-both-conflict", args: []string{"away", "on", "--both", "--side", "left"}, exit: 2},
 	{name: "err-temp-invalid", args: []string{"temp", "warm"}, exit: 2},
-	{name: "err-temp-missing", args: []string{"temp"}, exit: 2, change: "a parse error prints one error line (C2)"},
-	{name: "err-alarm-create", args: []string{"alarm", "create"}, exit: 2, requests: "validated before credentials are checked"},
-	{name: "err-alarm-update-empty", args: []string{"alarm", "update", "a1"}, exit: 2, requests: "validated before credentials are checked"},
-	{name: "err-favorite-track", args: []string{"audio", "favorites", "add"}, exit: 2, requests: "validated before credentials are checked"},
-	{name: "err-create-trip-empty", args: []string{"travel", "create-trip"}, exit: 2, requests: "validated before credentials are checked"},
-	{name: "err-sleep-range-missing", args: []string{"sleep", "range"}, exit: 2, requests: "validated before credentials are checked"},
-	{name: "err-presence-date", args: []string{"presence", "--from", "2026-13-01"}, exit: 2, requests: "validated before credentials are checked"},
+	{name: "err-temp-missing", args: []string{"temp"}, exit: 2, change: "a parse error prints one error line (C2)", newError: `expected "<value>"`},
+	{name: "err-alarm-create", args: []string{"alarm", "create"}, exit: 2, refused: true},
+	{name: "err-alarm-update-empty", args: []string{"alarm", "update", "a1"}, exit: 2, refused: true},
+	{name: "err-favorite-track", args: []string{"audio", "favorites", "add"}, exit: 2, refused: true},
+	{name: "err-create-trip-empty", args: []string{"travel", "create-trip"}, exit: 2, refused: true},
+	{name: "err-sleep-range-missing", args: []string{"sleep", "range"}, exit: 2, refused: true},
+	{name: "err-presence-date", args: []string{"presence", "--from", "2026-13-01"}, exit: 2, refused: true},
 	{name: "err-daemon-no-schedule", args: []string{"daemon", "--dry-run"}, exit: 2},
-	{name: "err-unknown-command", args: []string{"definitely-not-a-command"}, exit: 2, change: "a parse error prints one error line (C2)"},
-	{name: "err-unknown-flag", args: []string{"status", "--definitely-not-a-flag"}, exit: 2, change: "a parse error prints one error line (C2)"},
-	{name: "err-bare", args: []string{}, exit: 2, change: "a bare invocation is a usage error instead of help (C1)"},
+	{name: "err-unknown-command", args: []string{"definitely-not-a-command"}, exit: 2, change: "a parse error prints one error line (C2)",
+		newError: "unexpected argument definitely-not-a-command"},
+	{name: "err-unknown-flag", args: []string{"status", "--definitely-not-a-flag"}, exit: 2, change: "a parse error prints one error line (C2)",
+		newError: "unknown flag --definitely-not-a-flag"},
+	{name: "err-bare", args: []string{}, exit: 2, change: "a bare invocation is a usage error instead of help (C1)",
+		newError: `expected one of "alarm", "audio", "autopilot", "away", "base", ...`},
 
 	// eightsleepctl, run as the script with --output json and as the
 	// eightsleep equivalent with --json (docs/compatibility.md#eightsleepctl).
 	{name: "esc-whoami", old: eightsleepctl, userID: true, args: []string{"whoami"}, newArgs: []string{"whoami", "--json"},
-		change: "token_expires_at is present only when a token is cached", requests: "eightsleep answers a configured user ID without requesting a token"},
+		change: "token_expires_at is present only when a token is cached", requests: "eightsleep answers a configured user ID without requesting a token",
+		newJSON: map[string]any{"user_id": "u1"}},
 	{name: "esc-alarm-list", old: eightsleepctl, userID: true, args: []string{"alarm", "list"}, newArgs: []string{"alarm", "list", "--json"},
-		change: "rows {id,time,enabled,days,vibration,sound} instead of the raw alarm objects", requests: "eightctl's alarm list reads the client API, the script the app API"},
+		change: "rows {id,time,enabled,days,vibration,sound} instead of the raw alarm objects", requests: "eightctl's alarm list reads the client API, the script the app API",
+		newJSONFrom: "alarm-list-json"},
 	{name: "esc-alarm-active", old: eightsleepctl, userID: true, args: []string{"alarm", "active"}, newArgs: []string{"alarm", "active", "--json"}},
 	{name: "esc-dismiss-all", old: eightsleepctl, userID: true, args: []string{"alarm", "dismiss-all"}, newArgs: []string{"alarm", "dismiss-all", "--json"}},
 	{name: "esc-dismiss-all-fallback", old: eightsleepctl, userID: true, args: []string{"alarm", "dismiss-all"}, newArgs: []string{"alarm", "dismiss-all", "--json"},
 		fake: func(s *eightfake.Server) { s.DismissAllStatus = 405 }},
 	{name: "esc-dismiss-all-dry-run", old: eightsleepctl, userID: true, args: []string{"alarm", "dismiss-all", "--dry-run"},
 		newArgs: []string{"alarm", "dismiss-all", "--dry-run", "--json"},
-		change:  "fallback names the route the fallback really uses (POST each active alarm's dismiss) instead of a routines PUT"},
+		change:  "fallback names the route the fallback really uses (POST each active alarm's dismiss) instead of a routines PUT",
+		changed: map[string]any{"fallback": "<fake>/app-api/v1/users/u1/alarms/{id}/dismiss (POST for each active alarm)"}},
 	{name: "esc-presence", old: eightsleepctl, userID: true, args: []string{"presence"}, newArgs: []string{"presence", "detail", "--json"}, clock: true},
 	{name: "esc-presence-stale", old: eightsleepctl, userID: true, args: []string{"presence"}, newArgs: []string{"presence", "detail", "--json"}, clock: true,
 		fake: func(s *eightfake.Server) { s.StaleSignals = true }},
@@ -328,16 +351,29 @@ func diff(c tcase, want, got golden) []string {
 	if got.Exit != wantExit {
 		out = append(out, fmt.Sprintf("exit %d, want %d (old program %d)", got.Exit, wantExit, want.Exit))
 	}
-	if c.requests == "" && !reflect.DeepEqual(got.Requests, want.Requests) {
-		out = append(out, fmt.Sprintf("provider requests differ:\n new %v\n old %v", got.Requests, want.Requests))
-	}
-	if c.requests == "" && !reflect.DeepEqual(roundTrip(got.Writes), roundTrip(want.Writes)) {
-		g, _ := json.Marshal(got.Writes)
-		w, _ := json.Marshal(want.Writes)
-		out = append(out, fmt.Sprintf("write bodies differ:\n new %s\n old %s", g, w))
+	switch {
+	case c.refused:
+		if len(got.Requests) != 0 || len(got.Writes) != 0 {
+			out = append(out, fmt.Sprintf("refused invocation made %d requests and %d writes", len(got.Requests), len(got.Writes)))
+		}
+	case c.requests != "":
+		// The route differs as documented; the bodies sent must not.
+		if g, w := writeBodies(got.Writes), writeBodies(want.Writes); !reflect.DeepEqual(g, w) {
+			out = append(out, fmt.Sprintf("write bodies differ:\n new %s\n old %s", mustJSON(g), mustJSON(w)))
+		}
+	default:
+		if !reflect.DeepEqual(got.Requests, want.Requests) {
+			out = append(out, fmt.Sprintf("provider requests differ:\n new %v\n old %v", got.Requests, want.Requests))
+		}
+		if !reflect.DeepEqual(roundTrip(got.Writes), roundTrip(want.Writes)) {
+			out = append(out, fmt.Sprintf("write bodies differ:\n new %s\n old %s", mustJSON(got.Writes), mustJSON(want.Writes)))
+		}
 	}
 	if c.change != "" {
-		return out
+		want = replacement(c, want)
+		if got.Error != want.Error {
+			out = append(out, fmt.Sprintf("error differs from the documented change:\n new %q\n want %q", got.Error, want.Error))
+		}
 	}
 	if !reflect.DeepEqual(roundTrip(got.StdoutJSON), roundTrip(want.StdoutJSON)) {
 		g, _ := json.Marshal(got.StdoutJSON)
@@ -347,10 +383,71 @@ func diff(c tcase, want, got golden) []string {
 	if got.StdoutText != want.StdoutText {
 		out = append(out, fmt.Sprintf("stdout text differs:\n new %q\n old %q", got.StdoutText, want.StdoutText))
 	}
-	if want.Error != "" && got.Error != want.Error {
+	if c.change == "" && want.Error != "" && got.Error != want.Error {
 		out = append(out, fmt.Sprintf("error differs:\n new %q\n old %q", got.Error, want.Error))
 	}
 	return out
+}
+
+// replacement is the output a change case documents in place of the
+// golden's: the golden with the changed keys replaced, another golden's
+// stdout, or the literal stdout and error.
+func replacement(c tcase, want golden) golden {
+	out := golden{StdoutText: c.newText, Error: c.newError}
+	switch {
+	case c.changed != nil:
+		obj, _ := roundTrip(want.StdoutJSON).(map[string]any)
+		if obj == nil {
+			obj = map[string]any{}
+		}
+		for k, v := range c.changed {
+			obj[k] = v
+		}
+		out.StdoutJSON = obj
+	case c.newJSONFrom != "":
+		b, err := os.ReadFile(filepath.Join("testdata", c.newJSONFrom+".json"))
+		if err != nil {
+			panic(err)
+		}
+		var g golden
+		if err := json.Unmarshal(b, &g); err != nil {
+			panic(err)
+		}
+		out.StdoutJSON = g.StdoutJSON
+	case c.newJSON != nil:
+		out.StdoutJSON = c.newJSON
+	}
+	return out
+}
+
+func writeBodies(ws []eightfake.Write) []any {
+	out := []any{}
+	for _, w := range ws {
+		out = append(out, roundTrip(w.Body))
+	}
+	return out
+}
+
+func mustJSON(v any) string {
+	b, _ := json.Marshal(v)
+	return string(b)
+}
+
+// TestChangesDocumentTheirReplacement keeps every change case asserting its
+// new output rather than skipping the comparison.
+func TestChangesDocumentTheirReplacement(t *testing.T) {
+	for _, c := range cases {
+		has := c.changed != nil || c.newJSONFrom != "" || c.newJSON != nil || c.newText != "" || c.newError != ""
+		if c.change != "" && !has {
+			t.Errorf("%s: change %q names no replacement output", c.name, c.change)
+		}
+		if c.change == "" && has {
+			t.Errorf("%s: a replacement output without a documented change", c.name)
+		}
+		if c.refused && c.requests != "" {
+			t.Errorf("%s: refused already skips the request list", c.name)
+		}
+	}
 }
 
 func roundTrip(v any) any {
