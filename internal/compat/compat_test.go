@@ -540,11 +540,14 @@ func runNew(t *testing.T, c tcase) golden {
 	return runNewAt(t, c, time.Now())
 }
 
-// runNewAt runs the new CLI and normalises its result as if the run date
-// were now's.
+// runNewAt runs the new CLI as if the run date were now's: the fake and the
+// backend both read now as the clock, and the result is normalised against
+// it. One instant serves all three, so a run across midnight cannot split
+// them.
 func runNewAt(t *testing.T, c tcase, now time.Time) golden {
 	fake := newFake(c)
 	defer fake.Close()
+	fake.Now = func() time.Time { return now }
 	env, home := sandbox(t, c, fake)
 	for k, v := range env {
 		t.Setenv(k, v)
@@ -564,7 +567,8 @@ func runNewAt(t *testing.T, c tcase, now time.Time) golden {
 		}
 	}
 	hosts := fake.Hosts()
-	b := &ops.Backend{Globals: &ops.Globals{}, Hosts: &hosts, Stderr: &bytes.Buffer{}, Version: "dev"}
+	b := &ops.Backend{Globals: &ops.Globals{}, Hosts: &hosts, Stderr: &bytes.Buffer{}, Version: "dev",
+		Now: func() time.Time { return now }}
 	args := c.args
 	if c.newArgs != nil {
 		args = c.newArgs
@@ -629,10 +633,18 @@ func result(c tcase, now time.Time, code int, stdout, errLine string, fake *eigh
 
 // cleaner returns the string normaliser for one run of c at now: the sandbox
 // path and the fake's address always, today's and yesterday's UTC dates and
-// timestamps on them only when c is a clock case.
+// timestamps on them only when c is a clock case. A clock case also masks
+// timestamps on the real wall clock's last three UTC days: away on and off
+// stamp their write from time.Now, which a pinned now does not reach.
 func cleaner(c tcase, now time.Time, home string) func(string) string {
 	today := now.UTC().Format("2006-01-02")
 	yesterday := now.UTC().AddDate(0, 0, -1).Format("2006-01-02")
+	wall := time.Now().UTC()
+	var days []string
+	for i := 0; i < 3; i++ {
+		days = append(days, wall.AddDate(0, 0, -i).Format("2006-01-02"))
+	}
+	wallRecent := regexp.MustCompile(`(` + strings.Join(days, "|") + `)T\d{2}:\d{2}:\d{2}(\.\d+)?Z`)
 	return func(s string) string {
 		s = strings.ReplaceAll(s, home, "<home>")
 		s = port.ReplaceAllString(s, "<fake>")
@@ -641,7 +653,8 @@ func cleaner(c tcase, now time.Time, home string) func(string) string {
 		}
 		s = strings.ReplaceAll(s, today, "<today>")
 		s = strings.ReplaceAll(s, yesterday, "<yesterday>")
-		return recent.ReplaceAllString(s, "<recent>")
+		s = recent.ReplaceAllString(s, "<recent>")
+		return wallRecent.ReplaceAllString(s, "<recent>")
 	}
 }
 
@@ -759,6 +772,55 @@ func TestGoldensHoldOnEveryRunDate(t *testing.T) {
 	}
 	if !covered["travel-update-plan"] {
 		t.Fatal("travel-update-plan was not replayed on its fixture date")
+	}
+}
+
+// TestClockCasesHoldOnEveryRunDate replays every clock case as if the run
+// date were several days of the month. sleep-day-today failed on every day
+// but the 8th when the fake derived today's score and duration from the run
+// date's day of month.
+func TestClockCasesHoldOnEveryRunDate(t *testing.T) {
+	if *recordEightctl != "" || *recordEightsleepctl != "" {
+		t.Skip("recording")
+	}
+	runDates := []time.Time{
+		time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC),
+		time.Date(2027, 1, 1, 0, 30, 0, 0, time.UTC),
+		time.Date(2027, 1, 8, 12, 0, 0, 0, time.UTC),
+		time.Date(2027, 1, 9, 12, 0, 0, 0, time.UTC),
+		time.Date(2027, 1, 31, 23, 30, 0, 0, time.UTC),
+		time.Date(2028, 2, 29, 12, 0, 0, 0, time.UTC),
+	}
+	n := 0
+	for _, c := range cases {
+		if !c.clock {
+			continue
+		}
+		if c.old == "" {
+			c.old = eightctl
+		}
+		want := loadGolden(t, c.name)
+		b, _ := json.Marshal(want)
+		for _, now := range runDates {
+			// A run date on or the day after a fixture date would mask it;
+			// the dates above must stay clear of every golden's literals.
+			for _, d := range dateLiteral.FindAllString(string(b), -1) {
+				for _, day := range []time.Time{now, now.AddDate(0, 0, -1)} {
+					if day.UTC().Format("2006-01-02") == d {
+						t.Fatalf("%s: run date %s would mask fixture date %s; pick another", c.name, now.Format(time.RFC3339), d)
+					}
+				}
+			}
+			t.Run(c.name+"@"+now.Format("2006-01-02"), func(t *testing.T) {
+				for _, d := range diff(c, want, runNewAt(t, c, now)) {
+					t.Error(d)
+				}
+			})
+			n++
+		}
+	}
+	if n == 0 {
+		t.Fatal("no clock case was replayed")
 	}
 }
 
