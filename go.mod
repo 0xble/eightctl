@@ -1,6 +1,6 @@
 module github.com/0xble/eightsleep
 
-go 1.25.5
+go 1.26.9
 
 require (
 	github.com/0xble/toolkit v0.1.9
