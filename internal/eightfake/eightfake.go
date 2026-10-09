@@ -316,6 +316,25 @@ func (s *Server) alarms(method, host string, rest []string, body []byte) (any, i
 	return map[string]any{}, 0
 }
 
+// Fixture days are the dates the tests name with --date, --from and --to.
+// recordedDay is when the compat goldens were recorded: a day the CLI took
+// from the wall clock (sleep day without --date) was that day then.
+var (
+	firstFixtureDay = time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	recordedDay     = time.Date(2026, 10, 8, 0, 0, 0, 0, time.UTC)
+)
+
+// fixtureDay is the number a day's metrics vary by: its day of month from
+// the first fixture day to the recording day, and the recording day's for
+// any other day, which only the wall clock asks for. So today's metrics
+// are the same whatever the run date.
+func fixtureDay(d time.Time) int {
+	if d.Before(firstFixtureDay) || d.After(recordedDay) {
+		return recordedDay.Day()
+	}
+	return d.Day()
+}
+
 // trends answers every requested day with metrics and one session whose
 // samples end a few minutes before now, or three hours before with
 // StaleSignals.
@@ -339,7 +358,7 @@ func (s *Server) trends(q url.Values) map[string]any {
 	sample := func(d time.Duration, v float64) []any { return []any{last.Add(-d).Format(time.RFC3339), v} }
 	days := []any{}
 	for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
-		n := float64(d.Day())
+		n := float64(fixtureDay(d))
 		days = append(days, map[string]any{
 			"day": d.Format("2006-01-02"), "score": 80 + n, "tnt": 12, "respiratoryRate": 14.5, "heartRate": 58.25,
 			"latencyAsleepSeconds": 600, "latencyOutSeconds": 300, "sleepDurationSeconds": 27000 + n,
